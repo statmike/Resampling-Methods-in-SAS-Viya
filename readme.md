@@ -99,7 +99,7 @@ Parameter Descriptions
 
     intable="string"  
       required  
-      specifies the name of the table to sampel from in cas
+      specifies the name of the table to sample from in cas
     bss=integer
       not required
       default=10
@@ -115,39 +115,3 @@ Parameter Descriptions
 Have something to add?  Just fork it, change it, and create a pull request!
 
 Have comments, questions, suggestions? Just use the issues feature
-
-
-
-
-
-
-## Notes - Move to Project in Github
-
-dependency flow:
-resample - defineActionSet.sashdat
-  example 1
-  walkthroughs - make sure changes to defineAction are reflected here
-    wiki (these will reference row numbers)
-
-readme:
-  what this repo is
-  overview of files
-  links to wiki for deeper details, methodology, references, etc
-
-wiki
-  almost like a class teaching and illustrating methods
-  code walkthroughs for documentation
-
-  todo:
-  how is double bootstrap spelled (hyphen?)
-  is cas upper or lower case?
-  test studio interactive with saving value between proc cas submission with and without quit statements.
-  edit walkthrough distributed data
-  add diagnostics at end of walkthroughs
-  explain bss as function of nthreads - show code to get _nthreads_
-    consider adding option to specify number of resamples and have code figure out bss
-  create wiki pages with walkthrough code explained in detail
-    first a a walkthrough page explaining why mpp for this - and point to walkthrough of dist data
-  wiki page describing bootstrap in pictures using notation of book
-  main wiki page point to efron award
-    point out everything is in actions so portable to api's - link to documentation
