@@ -13,7 +13,7 @@ All code is written in SAS CASL which can be executed from a SAS interface with 
 * [resample - defineActionSet.sas](./resample%20-%20defineActionSet.sas)
 * Folder: [examples](./examples) contains examples of using the actions
   * [example 1 - loading and using bootstrap action from resample.sas](./examples/example%201%20-%20loading%20and%20using%20bootstrap%20action%20from%20resample.sas)
-  * [example 2 - regression bootstap parameter estimates.sas](./examples/example%202%20-%20regression%20bootstap%20parameter%20estimates.sas)
+  * [example 2 - regression bootstrap parameter estimates.sas](./examples/example%202%20-%20regression%20bootstrap%20parameter%20estimates.sas)
   * [example 3 - regression double bootstrap parameter estimates.sas](./examples/example%203%20-%20regression%20double%20bootstrap%20parameter%20estimates.sas)
 * Folder: [walkthroughs](./walkthroughs) contains step-by-step commented versions of the code within the actions to help understand how they work.  This is great for learning!
   * [walkthrough - addRowID action.sas](./walkthroughs/walkthrough%20-%20addRowID%20action.sas)
