@@ -74,6 +74,8 @@ proc cas;
 																'|| intable ||'
 																using (rowID)';
 							dropTable name=intable||'_bskey';
+							resp.bss=bss;
+							send_response(resp);
 				"
 			}
 			{
@@ -88,10 +90,14 @@ proc cas;
 							table.tableExists result=c / name=intable||'_bs';
 								if c.exists then do;
 										/*calculate bss here*/
+										datastep.runcode result=t / code='data tempholdbss; set '|| intable || '_bs; threadid=_threadid_; nthreads=_nthreads_; run;';
+												fedsql.execDirect result=q / query='select max(bscount) as bss from (select count(*) as bscount from (select distinct bsID, threadid from tempholdbss) group by threadid)';
+												dropTable name='tempholdbss';
+												bss=q[1,1].bss;
 								end;
 								else; do;
-									resample.bootstrap / intable=intable B=B;
-									/* will the bss carry through? */
+									resample.bootstrap r=r / intable=intable B=B;
+									bss=r.bss;
 								end;
 								/*
 							datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';

@@ -14,5 +14,11 @@ proc cas;
 	resample.bootstrap / intable='sample' B=100;
 	*resample.doubleBootstrap / intable='sample' B=100;
 run;
+/*
+test bs first
+test dbs after bs
+test dbs without bs first
+*/
+
 
 *cas mysess clear;
