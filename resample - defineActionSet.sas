@@ -41,17 +41,14 @@ proc cas;
 				desc = "Create a table with bootstrap resamples of input table"
 				parms = {
 					{name="intable" type="string" required=TRUE}
-					{name="bss" type="int" required=FALSE default=10}
-					{name="B" type="int" required=FALSE default=.}
+					{name="B" type="int" required=TRUE default=100}
 				}
 				definition = "
 							resample.addRowID / intable=intable;
-							if B>0 then do;
-								datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
-								fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
-								dropTable name='tempholdb';
-								bss=ceil(B/q[1,1].M);
-							end;
+							datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
+									fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
+									dropTable name='tempholdb';
+									bss=ceil(B/q[1,1].M);
 							simple.numRows result=r / table=intable;
 							datastep.runcode result=t / code='data '|| intable ||'_bskey;
 														call streaminit(12345);
@@ -84,7 +81,7 @@ proc cas;
 				desc = "Create a table with double bootstrap resamples of input table sample_bs created by the bootstrap action"
 				parms = {
 					{name="intable" type="string" required=TRUE}
-					{name="bss" type="int" required=FALSE default=10}
+					{name="B" type="int" required=TRUE default=10}
 				}
 				definition = "
 							table.tableExists result=c / name=intable||'_bs';
@@ -92,11 +89,12 @@ proc cas;
 
 								end;
 								else; do;
-									resample.bootstrap / intable=intable bss=bss;
+									resample.bootstrap / intable=intable B=B;
 								end;
-							datastep.runcode result=t / code='data '|| intable ||'; set '|| intable ||'; nthreads=_nthreads_; run;';
-							fedsql.execDirect result=q / query='select max(nthreads) as M from '|| intable ||'';
-							alterTable / name=intable columns={{name='nthreads', drop=TRUE}};
+							datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
+									fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
+									dropTable name='tempholdb';
+									bss=ceil(B/q[1,1].M);
 							simple.numRows result=r / table=intable;
 							datastep.runcode result=t / code='data '|| intable ||'_dbskey;
 															  	call streaminit(12345);

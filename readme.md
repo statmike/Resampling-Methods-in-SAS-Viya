@@ -55,8 +55,8 @@ Parameter Descriptions
 ### resample.bootstrap action
 Creates a table of identically sized bootstrap resamples from table <intable> and stores them in a table named <intable>_bs.  Runs the addRowID action on the <intable>.  Columns that describe the link between the bootstrap samples and the original samples are:
 * bsID - is the naturally numbered (1, 2, ..., b) identifier of a resample
-* bs_rowID - is the natually numbered (1, 2, ..., n) row identifier within the value of bsID
-* rowID - is the natrually numbered (1, 2, ..., n) row identifier for the sampled row in <intable>
+* bs_rowID - is the naturally numbered (1, 2, ..., n) row identifier within the value of bsID
+* rowID - is the naturally numbered (1, 2, ..., n) row identifier for the sampled row in <intable>
 * bag - is 1 for sampled rows, 0 for rowID values not sampled within the bsID (will have missing for bs_rowID)
 
 ```
@@ -64,7 +64,6 @@ CASL Syntax
 
     resample.bootstrap /
       intable="string"
-      bss=integer
       B=integer
 
 Parameter Descriptions
@@ -72,13 +71,9 @@ Parameter Descriptions
     intable="string"  
       required  
       specifies the name of the table to resample from in cas
-    bss=integer
-      not required
-      default=10
-      Specifies the number of resamples to take per threadid in the cas environment
     B=integer
-      not required
-      Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss to ensure the final number of bootstrap resamples is >=B.  Note: overwrites any specified value of bss.
+      required
+      Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
 ```
 
 ---
@@ -97,20 +92,18 @@ CASL Syntax
 
     resample.doubleBootstrap /
       intable="string"
-      bss=integer
+      B=integer
 
 Parameter Descriptions
 
     intable="string"  
       required  
       specifies the name of the table to sample from in cas
-    bss=integer
-      not required
-      default=10
-      Specifies the number of bootstrap resamples to take per threadid in the cas environment.
-      The number of double-bootstrap resamples per bootstrap resample will be:
-          bss multiplied by the number of threads in the cas environment  
-      If you run resample.bootstrap first then ensure you used the same value of bss.
+    B=integer
+      required
+      Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
+      The number of double-bootstrap resamples per bootstrap resample will be the same as the number of bootstap resamples.  For example: if B=100 and _nthreads_=32 then the actual number of bootstrap resamples will be 4*32=128 (4 per _threadid_) and the number of double-bootstrap resamples will then be 128*128=16384.
+      If you run resample.bootstrap first then make sure you used the same value of B.
           If you don't run resample.bootstrap first then resample.doubleBootstrap will do it correctly.
 
 ```

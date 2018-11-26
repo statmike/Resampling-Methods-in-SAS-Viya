@@ -55,7 +55,7 @@ run;
 /* create double bootstraped samples */
 proc cas;
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
-	resample.doubleBootstrap / intable='sample' bss=2;
+	resample.doubleBootstrap / intable='sample' B=50;
 run;
 
 /* analyze/train each bootstrap sample with the same model effects selected on the full sample data */

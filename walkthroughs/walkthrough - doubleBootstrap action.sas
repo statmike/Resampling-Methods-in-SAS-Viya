@@ -11,11 +11,11 @@ proc casutil;
 	load data=sashelp.cars casout="sample" replace;
 quit;
 
-/* define a parameter to hold the table name and bss
+/* define a parameter to hold the table name and B (the desired number of resamples, both bootstrap, and double-bootstrap)
       If you are in SAS Studio use interactive mode so this will be remembered */
 proc cas;
 	 intable='sample';
-	 bss=2;
+	 B=50;
 run;
 
 		/* check to see if resample.bootstrap has already been run
@@ -26,14 +26,16 @@ run;
 
       end;
       else; do;
-        resample.bootstrap / intable=intable bss=bss;
+        resample.bootstrap / intable=intable B=B;
       end;
 run;
 
-		/* use the datastep automatic variable nthreads to store the environment size (number of threads) in q[1,1].M */
-    datastep.runcode result=t / code='data '|| intable ||'; set '|| intable ||'; nthreads=_nthreads_; run;';
-    fedsql.execDirect result=q / query='select max(nthreads) as M from '|| intable ||'';
-    alterTable / name=intable columns={{name='nthreads', drop=TRUE}};
+		/* use the datastep automatic variable nthreads to store the environment size (number of threads) in q[1,1].M
+				use this to calculate the value of bss - number of resamples per _threadid_ to achieve atleast B resamples */
+		datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
+				fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
+				dropTable name='tempholdb';
+				bss=ceil(B/q[1,1].M);
 run;
 
 		/* create a structure for the double bootstrap sampling.
