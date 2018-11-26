@@ -11,11 +11,12 @@ proc casutil;
 	load data=sashelp.cars casout="sample" replace;
 quit;
 
-/* define a parameter to hold the table name and B (the desired number of resamples, both bootstrap, and double-bootstrap)
+/* define a parameter to hold the table name and B (the desired number of resamples for the bootstrap) and D (the desired number of resamples for the double-bootstrap)
       If you are in SAS Studio use interactive mode so this will be remembered */
 proc cas;
 	 intable='sample';
 	 B=50;
+	 D=50;
 run;
 
 		/* check to see if resample.bootstrap has already been run
@@ -44,14 +45,14 @@ run;
 		          it then creates bss*nthreads resamples - double-bootstrap
 		          example: if you environment has 48 threads (maybe 3 workers with 16 threads each)
 		                    bss=10 will create 480 bootstrap resamples
-		                    each bootstrap resample will yield 480 double-bootstrap resamples
-		                    480*480 = 230,400 double-bootstrap resamples */
+		                    each bootstrap resample will yield D double-bootstrap resamples
+		                    if D=480 also then 480*480 = 230,400 double-bootstrap resamples */
     simple.numRows result=r / table=intable;
     datastep.runcode result=t / code='data '|| intable ||'_dbskey;
                         call streaminit(12345);
                       do bs = 1 to '|| bss ||';
                         bsID = (_threadid_-1)*'|| bss ||' + bs;
-                          do dbsID = 1 to '|| bss ||'*'|| q[1,1].M ||';
+                          do dbsID = 1 to '|| D ||';
                             do dbs_rowID = 1 to '|| r.numrows ||';
                               bs_rowID = int(1+'|| r.numrows ||'*rand(''Uniform''));
                               bag=1;

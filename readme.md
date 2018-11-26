@@ -80,7 +80,7 @@ Parameter Descriptions
 ### resample.doubleBootstrap action
 Creates a table of identically sized bootstrap and double-bootstrap resamples from table <intable> and stores them in a tables <intable>_bs and <intable>_dbs.  Runs the addRowID action on the <intable>.  Columns that describe the link between the double-bootstrap resamples and the bootstrap resamples are:
 * bsID - is the naturally numbered (1, 2, ..., b) identifier of a resample
-* dbsID - is the naturally numbered (1, 2, ..., b) identifier of a resample from bsID
+* dbsID - is the naturally numbered (1, 2, ..., d) identifier of a resample from a bsID
 * dbs_rowID - is the naturally numbered (1, 2, ..., n) row identifier within the value of dbsID
 * bs_rowID - is the naturally numbered (1, 2, ..., n) row identifier for the resampled row in bsID
 * rowID - is the naturally numbered (1, 2, ..., n) row identifier for the resampled row in <intable>
@@ -93,6 +93,7 @@ CASL Syntax
     resample.doubleBootstrap /
       intable="string"
       B=integer
+      D=integer
 
 Parameter Descriptions
 
@@ -102,10 +103,12 @@ Parameter Descriptions
     B=integer
       required
       Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
-      The number of double-bootstrap resamples per bootstrap resample will be the same as the number of bootstap resamples.  For example: if B=100 and _nthreads_=32 then the actual number of bootstrap resamples will be 4*32=128 (4 per _threadid_) and the number of double-bootstrap resamples will then be 128*128=16384.
       If you run resample.bootstrap first then make sure you used the same value of B.
           If you don't run resample.bootstrap first then resample.doubleBootstrap will do it correctly.
-
+    D=integer
+      required
+      Specifies the desired number of double-bootstrap resamples from each bootstrap resample.
+    Note: The number of double-bootstrap resamples is atleast B*D.  For Example: B=1000 and D=1000 yields at least B*D=1000000
 ```
 ---
 ## Contribute

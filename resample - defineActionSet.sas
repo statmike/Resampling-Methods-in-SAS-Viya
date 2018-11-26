@@ -82,6 +82,7 @@ proc cas;
 				parms = {
 					{name="intable" type="string" required=TRUE}
 					{name="B" type="int" required=TRUE default=10}
+					{name="D" type="int" required=TRUE default=10}
 				}
 				definition = "
 							table.tableExists result=c / name=intable||'_bs';
@@ -100,7 +101,7 @@ proc cas;
 															  	call streaminit(12345);
 																do bs = 1 to '|| bss ||';
 																	bsID = (_threadid_-1)*'|| bss ||' + bs;
-																		do dbsID = 1 to '|| bss ||'*'|| q[1,1].M ||';
+																		do dbsID = 1 to '|| D ||';
 																			do dbs_rowID = 1 to '|| r.numrows ||';
 																	 			bs_rowID = int(1+'|| r.numrows ||'*rand(''Uniform''));
 																	 			bag=1;
