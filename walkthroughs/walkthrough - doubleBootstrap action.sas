@@ -94,4 +94,14 @@ run;
 		dropTable name=intable||'_dbskey';
 quit;
 
+/* review the output table sample_dbs */
+proc cas;
+/*
+how many bsID
+	how many bsID per _threadid_
+how many dbsID in each
+how many rows in each dbsID (bag and OOB)
+*/
+run;
+
 *cas mysess clear;

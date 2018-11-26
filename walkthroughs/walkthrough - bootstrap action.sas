@@ -71,4 +71,14 @@ run;
     dropTable name=intable||'_bskey';
 quit;
 
+/* review the output table sample_bs */
+proc cas;
+/*
+how many bsID
+	how many bsID per _threadid_
+how many rows each (bag and OOB)
+*/
+run;
+
+
 *cas mysess clear;

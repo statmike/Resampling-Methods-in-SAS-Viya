@@ -87,15 +87,18 @@ proc cas;
 				definition = "
 							table.tableExists result=c / name=intable||'_bs';
 								if c.exists then do;
-
+										/*calculate bss here*/
 								end;
 								else; do;
 									resample.bootstrap / intable=intable B=B;
+									/* will the bss carry through? */
 								end;
+								/*
 							datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
 									fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
 									dropTable name='tempholdb';
 									bss=ceil(B/q[1,1].M);
+									*/
 							simple.numRows result=r / table=intable;
 							datastep.runcode result=t / code='data '|| intable ||'_dbskey;
 															  	call streaminit(12345);
