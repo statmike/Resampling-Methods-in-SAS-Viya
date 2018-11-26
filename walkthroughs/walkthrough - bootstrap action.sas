@@ -11,16 +11,26 @@ proc casutil;
 	load data=sashelp.cars casout="sample" replace;
 quit;
 
-/* define a parameter to hold the table name and bss
+/* define a parameter to hold the table name and bss (and/or optionally B)
       If you are in SAS Studio use interactive mode so this will be remembered */
 proc cas;
 	  intable='sample';
-	  bss=10;
+	  bss=10; /* number of resamples to create per thread in environment */
+		B=400; /* desired number of resamples, used to reset value of bss to achieve at least B samples */
 run;
 
 		/* use the resample.addRowID action to add a naturally numbered rowID to the sample data */
 		builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
 		resample.addRowID / intable=intable;
+run;
+
+		/* If user specifies desired number of resamples B then reset bss to achieve atleast B resamples */
+		if B>0 then do;
+			datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
+			fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
+			dropTable name='tempholdb';
+			bss=ceil(B/q[1,1].M);
+		end;
 run;
 
 		/* store the size of the original sample data in r.numRows */

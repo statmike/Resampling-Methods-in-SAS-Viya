@@ -53,7 +53,7 @@ Parameter Descriptions
 
 ---
 ### resample.bootstrap action
-Creates a table of identically sized bootstrap samples from table <intable> and stores them in a table named <intable>_bs.  Runs the addRowID action on the <intable>.  Columns that describe the link between the bootstrap samples and the original samples are:
+Creates a table of identically sized bootstrap resamples from table <intable> and stores them in a table named <intable>_bs.  Runs the addRowID action on the <intable>.  Columns that describe the link between the bootstrap samples and the original samples are:
 * bsID - is the naturally numbered (1, 2, ..., b) identifier of a resample
 * bs_rowID - is the natually numbered (1, 2, ..., n) row identifier within the value of bsID
 * rowID - is the natrually numbered (1, 2, ..., n) row identifier for the sampled row in <intable>
@@ -65,28 +65,32 @@ CASL Syntax
     resample.bootstrap /
       intable="string"
       bss=integer
+      B=integer
 
 Parameter Descriptions
 
     intable="string"  
       required  
-      specifies the name of the table to sample from in cas
+      specifies the name of the table to resample from in cas
     bss=integer
       not required
       default=10
       Specifies the number of resamples to take per threadid in the cas environment
+    B=integer
+      not required
+      Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss to ensure the final number of bootstrap resamples is >=B.  Note: overwrites any specified value of bss.
 ```
 
 ---
 ### resample.doubleBootstrap action
-Creates a table of identically sized bootstrap and double-bootstrap samples from table <intable> and stores them in a tables <intable>_bs and <intable>_dbs.  Runs the addRowID action on the <intable>.  Columns that describe the link between the double-bootstrap samples and the bootstrap samples are:
+Creates a table of identically sized bootstrap and double-bootstrap resamples from table <intable> and stores them in a tables <intable>_bs and <intable>_dbs.  Runs the addRowID action on the <intable>.  Columns that describe the link between the double-bootstrap resamples and the bootstrap resamples are:
 * bsID - is the naturally numbered (1, 2, ..., b) identifier of a resample
 * dbsID - is the naturally numbered (1, 2, ..., b) identifier of a resample from bsID
 * dbs_rowID - is the naturally numbered (1, 2, ..., n) row identifier within the value of dbsID
-* bs_rowID - is the naturally numbered (1, 2, ..., n) row identifier for the sampled in bsID
-* rowID - is the naturally numbered (1, 2, ..., n) row identifier for the sampled row in <intable>
-* bag - is 1 for sampled rows, 0 for rowID values not sampled within the bsID (will have missing for bs_rowID)
-  * 0 could be a non-sampled row in either the bsID or the dbsID (samples from bsID)
+* bs_rowID - is the naturally numbered (1, 2, ..., n) row identifier for the resampled row in bsID
+* rowID - is the naturally numbered (1, 2, ..., n) row identifier for the resampled row in <intable>
+* bag - is 1 for resampled rows, 0 for rowID values not resampled within the bsID (will have missing for bs_rowID)
+  * 0 could be a non-resampled row in either the bsID or the dbsID (resampled from bsID)
 
 ```
 CASL Syntax

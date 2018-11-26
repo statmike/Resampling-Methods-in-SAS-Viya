@@ -38,13 +38,20 @@ proc cas;
 			}
 			{
 				name = "bootstrap"
-				desc = "Create a table with bootstrap samples of input table"
+				desc = "Create a table with bootstrap resamples of input table"
 				parms = {
 					{name="intable" type="string" required=TRUE}
 					{name="bss" type="int" required=FALSE default=10}
+					{name="B" type="int" required=FALSE default=.}
 				}
 				definition = "
 							resample.addRowID / intable=intable;
+							if B>0 then do;
+								datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
+								fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
+								dropTable name='tempholdb';
+								bss=ceil(B/q[1,1].M);
+							end;
 							simple.numRows result=r / table=intable;
 							datastep.runcode result=t / code='data '|| intable ||'_bskey;
 														call streaminit(12345);
@@ -74,7 +81,7 @@ proc cas;
 			}
 			{
 				name = "doubleBootstrap"
-				desc = "Create a table with double bootstrap samples of input table sample_bs created by the bootstrap action"
+				desc = "Create a table with double bootstrap resamples of input table sample_bs created by the bootstrap action"
 				parms = {
 					{name="intable" type="string" required=TRUE}
 					{name="bss" type="int" required=FALSE default=10}
