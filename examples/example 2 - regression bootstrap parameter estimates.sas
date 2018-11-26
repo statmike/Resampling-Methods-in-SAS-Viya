@@ -1,7 +1,7 @@
 cas mysess sessopts=(caslib='casuser');
 libname mylib cas sessref=mysess;
 
-/* load original sample that will be sampled from */
+/* load original sample that will be resampled from */
 proc casutil;
 	load data=sashelp.cars casout="sample" replace;
 quit;
@@ -53,13 +53,13 @@ run;
   			         		   copyVars={"MSRP"}};
   			run;
 
-/* create bootstrap samples */
+/* create bootstrap resamples */
 proc cas;
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
 	resample.bootstrap / intable='sample' B=100;
 run;
 
-/* analyze/train each bootstrap sample with the same model effects selected on the full sample data */
+/* analyze/train each bootstrap resample with the same model effects selected on the full sample data */
 proc cas;
    glm result=myresult / table  = {name='sample_bs', groupBy='bsID'},
 		 class = {'Origin','DriveTrain'},

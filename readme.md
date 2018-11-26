@@ -14,7 +14,7 @@ All code is written in SAS CASL which can be executed from a SAS interface with 
 * Folder: [examples](./examples) contains examples of using the actions
   * [example 1 - loading and using bootstrap action from resample.sas](./examples/example%201%20-%20loading%20and%20using%20bootstrap%20action%20from%20resample.sas)
   * [example 2 - regression bootstrap parameter estimates.sas](./examples/example%202%20-%20regression%20bootstrap%20parameter%20estimates.sas)
-  * [example 3 - regression double bootstrap parameter estimates.sas](./examples/example%203%20-%20regression%20double%20bootstrap%20parameter%20estimates.sas)
+  * [example 3 - regression double-bootstrap parameter estimates.sas](./examples/example%203%20-%20regression%20double%20bootstrap%20parameter%20estimates.sas)
 * Folder: [walkthroughs](./walkthroughs) contains step-by-step commented versions of the code within the actions to help understand how they work.  This is great for learning!
   * [walkthrough - addRowID action.sas](./walkthroughs/walkthrough%20-%20addRowID%20action.sas)
   * [walkthrough - bootstrap action.sas](./walkthroughs/walkthrough%20-%20bootstrap%20action.sas)
@@ -53,11 +53,11 @@ Parameter Descriptions
 
 ---
 ### resample.bootstrap action
-Creates a table of identically sized bootstrap resamples from table <intable> and stores them in a table named <intable>_bs.  Runs the addRowID action on the <intable>.  Columns that describe the link between the bootstrap samples and the original samples are:
+Creates a table of identically sized bootstrap resamples from table <intable> and stores them in a table named <intable>_bs.  Runs the addRowID action on the <intable>.  Columns that describe the link between the bootstrap resamples and the original sample are:
 * bsID - is the naturally numbered (1, 2, ..., b) identifier of a resample
 * bs_rowID - is the naturally numbered (1, 2, ..., n) row identifier within the value of bsID
 * rowID - is the naturally numbered (1, 2, ..., n) row identifier for the sampled row in <intable>
-* bag - is 1 for sampled rows, 0 for rowID values not sampled within the bsID (will have missing for bs_rowID)
+* bag - is 1 for resampled rows, 0 for rowID values not resampled within the bsID (will have missing for bs_rowID)
 
 ```
 CASL Syntax
@@ -70,7 +70,7 @@ Parameter Descriptions
 
     intable="string"  
       required  
-      specifies the name of the table to resample from in cas
+      specifies the name of the table to resample from in CAS
     B=integer
       required
       Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
@@ -98,7 +98,7 @@ Parameter Descriptions
 
     intable="string"  
       required  
-      specifies the name of the table to sample from in cas
+      specifies the name of the table to resample from in CAS
     B=integer
       required
       Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.

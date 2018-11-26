@@ -1,7 +1,7 @@
 cas mysess sessopts=(caslib='casuser');
 libname mylib cas sessref=mysess;
 
-/* load original sample that will be sample from */
+/* load original sample that will be resample from */
 proc casutil;
 	load data=sashelp.cars casout="sample" replace;
 quit;
@@ -52,13 +52,13 @@ run;
 					         		   copyVars={"MSRP"}};
 					run;
 
-/* create double bootstraped samples */
+/* create double-bootstraped resamples */
 proc cas;
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
 	resample.doubleBootstrap / intable='sample' B=50;
 run;
 
-/* analyze/train each bootstrap sample with the same model effects selected on the full sample data */
+/* analyze/train each bootstrap resample with the same model effects selected on the full sample data */
 proc cas;
    glm result=myresult / table  = {name='sample_bs', groupBy='bsID'},
 		 class = {'Origin','DriveTrain'},
@@ -83,7 +83,7 @@ proc cas;
          		   pred='Pred', resid='Resid', cooksd='CooksD', h='H',
          		   copyVars={"bsID","bs_rowID","rowID","MSRP","bag"}};
 run;
-/* analyze/train each double bootstrap sample with the same model effects selected on the full sample data */
+/* analyze/train each double-bootstrap resample with the same model effects selected on the full sample data */
 proc cas;
    glm result=myresult / table  = {name='sample_dbs', groupBy={'bsID','dbsID'}},
 		 class = {'Origin','DriveTrain'},
@@ -115,7 +115,7 @@ proc cas;
 	percentile / table = {name="sample_BS_PE", groupBy='Parameter', vars={"Estimate"}},
 				 casOut = {name="sample_BS_PE_perc", replace=TRUE},
 				 values = {2.5, 50, 97.5};
-	/* double bootstrap - get percentiles for 95% BS CI for each parameter */
+	/* double-bootstrap - get percentiles for 95% BS CI for each parameter */
 	percentile / table = {name="sample_DBS_PE", groupBy={{name='Parameter'},{name='bsID'}}, vars={"Estimate"}},
 				 casOut = {name="sample_DBS_PE_perc", replace=TRUE, where="_Column_='Estimate'"},
 				 values = {50};
@@ -158,7 +158,7 @@ proc sgplot data=sample_BS_PE_PLOT;
 	where lowerCL is not null;
 	scatter y=Parameter x=Estimate / xerrorlower=LowerCL xerrorupper=UpperCL markerattrs=(symbol=circle size=9 color=red) legendlabel='Estimate';
 	scatter y=Parameter x=BS_Estimate / xerrorlower=BS_LowerCL xerrorupper=BS_UpperCL markerattrs=(symbol=circlefilled size=6 color=green) legendlabel='Bootstrap';
-	scatter y=Parameter x=DBS_Estimate / xerrorlower=DBS_LowerCL xerrorupper=DBS_UpperCL markerattrs=(symbol=circlefilled size=6 color=blue) legendlabel='Double Bootstrap';
+	scatter y=Parameter x=DBS_Estimate / xerrorlower=DBS_LowerCL xerrorupper=DBS_UpperCL markerattrs=(symbol=circlefilled size=6 color=blue) legendlabel='Double-bootstrap';
 	*xaxis grid;
 	yaxis display=(nolabel);
 	refline 0 / axis=x;
@@ -168,7 +168,7 @@ proc sgplot data=sample_BS_PE_PLOT;
 	where max(abs(LowerCL),abs(UpperCL))>=10000;
 	scatter y=Parameter x=Estimate / xerrorlower=LowerCL xerrorupper=UpperCL markerattrs=(symbol=circle size=9 color=red) legendlabel='Estimate';
 	scatter y=Parameter x=BS_Estimate / xerrorlower=BS_LowerCL xerrorupper=BS_UpperCL markerattrs=(symbol=circlefilled size=6 color=green) legendlabel='Bootstrap';
-	scatter y=Parameter x=DBS_Estimate / xerrorlower=DBS_LowerCL xerrorupper=DBS_UpperCL markerattrs=(symbol=circlefilled size=6 color=blue) legendlabel='Double Bootstrap';
+	scatter y=Parameter x=DBS_Estimate / xerrorlower=DBS_LowerCL xerrorupper=DBS_UpperCL markerattrs=(symbol=circlefilled size=6 color=blue) legendlabel='Double-bootstrap';
 	*xaxis grid;
 	yaxis display=(nolabel);
 	refline 0 / axis=x;
@@ -178,7 +178,7 @@ proc sgplot data=sample_BS_PE_PLOT;
 	where max(abs(LowerCL),abs(UpperCL))<10000 and max(abs(LowerCL),abs(UpperCL))>=1000;
 	scatter y=Parameter x=Estimate / xerrorlower=LowerCL xerrorupper=UpperCL markerattrs=(symbol=circle size=9 color=red) legendlabel='Estimate';
 	scatter y=Parameter x=BS_Estimate / xerrorlower=BS_LowerCL xerrorupper=BS_UpperCL markerattrs=(symbol=circlefilled size=6 color=green) legendlabel='Bootstrap';
-	scatter y=Parameter x=DBS_Estimate / xerrorlower=DBS_LowerCL xerrorupper=DBS_UpperCL markerattrs=(symbol=circlefilled size=6 color=blue) legendlabel='Double Bootstrap';
+	scatter y=Parameter x=DBS_Estimate / xerrorlower=DBS_LowerCL xerrorupper=DBS_UpperCL markerattrs=(symbol=circlefilled size=6 color=blue) legendlabel='Double-bootstrap';
 	*xaxis grid;
 	yaxis display=(nolabel);
 	refline 0 / axis=x;
@@ -188,7 +188,7 @@ proc sgplot data=sample_BS_PE_PLOT;
 	where max(abs(LowerCL),abs(UpperCL))<1000 and max(abs(LowerCL),abs(UpperCL))>=100;
 	scatter y=Parameter x=Estimate / xerrorlower=LowerCL xerrorupper=UpperCL markerattrs=(symbol=circle size=9 color=red) legendlabel='Estimate';
 	scatter y=Parameter x=BS_Estimate / xerrorlower=BS_LowerCL xerrorupper=BS_UpperCL markerattrs=(symbol=circlefilled size=6 color=green) legendlabel='Bootstrap';
-	scatter y=Parameter x=DBS_Estimate / xerrorlower=DBS_LowerCL xerrorupper=DBS_UpperCL markerattrs=(symbol=circlefilled size=6 color=blue) legendlabel='Double Bootstrap';
+	scatter y=Parameter x=DBS_Estimate / xerrorlower=DBS_LowerCL xerrorupper=DBS_UpperCL markerattrs=(symbol=circlefilled size=6 color=blue) legendlabel='Double-bootstrap';
 	*xaxis grid;
 	yaxis display=(nolabel);
 	refline 0 / axis=x;
@@ -198,7 +198,7 @@ proc sgplot data=sample_BS_PE_PLOT;
 	where lowerCL is not null and max(abs(LowerCL),abs(UpperCL))<100;
 	scatter y=Parameter x=Estimate / xerrorlower=LowerCL xerrorupper=UpperCL markerattrs=(symbol=circle size=9 color=red) legendlabel='Estimate';
 	scatter y=Parameter x=BS_Estimate / xerrorlower=BS_LowerCL xerrorupper=BS_UpperCL markerattrs=(symbol=circlefilled size=6 color=green) legendlabel='Bootstrap';
-	scatter y=Parameter x=DBS_Estimate / xerrorlower=DBS_LowerCL xerrorupper=DBS_UpperCL markerattrs=(symbol=circlefilled size=6 color=blue) legendlabel='Double Bootstrap';
+	scatter y=Parameter x=DBS_Estimate / xerrorlower=DBS_LowerCL xerrorupper=DBS_UpperCL markerattrs=(symbol=circlefilled size=6 color=blue) legendlabel='Double-bootstrap';
 	*xaxis grid;
 	yaxis display=(nolabel);
 	refline 0 / axis=x;

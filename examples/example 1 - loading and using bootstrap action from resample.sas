@@ -7,7 +7,7 @@ proc casutil;
 quit;
 
 /* load the bootstrap action set and run it on the sample dataset
-  B=100 indicates it will create atleast 100 resamples (creates samples in multiples of the value of _nthreads_)
+  B=100 indicates it will create atleast 100 resamples (creates resamples in multiples of the value of _nthreads_)
 */
 proc cas;
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";

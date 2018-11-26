@@ -35,7 +35,7 @@ run;
 run;
 
 		/* create a structure for the bootstrap sampling.
-      		Will make samples equal to the size of the original table
+      		Will make resamples equal to the size of the original table
       		these instructions are sent to each _threadid_ and replicated bss times */
     simple.numRows result=r / table=intable;
     datastep.runcode result=t / code='data '|| intable ||'_bskey;
@@ -53,7 +53,7 @@ run;
 run;
 
 		/* use some fancy sql to merge the bootstrap structure with the sample data
-      		and include the unsampled rows with bag=0 */
+      		and include the rows not resampled with bag=0 */
     fedSql.execDirect / query='create table '|| intable ||'_bs {options replace=true} as
                     select * from
                       (select b.bsID, b.rowID, c.bs_rowID, CASE when c.bag is null then 0 else c.bag END as bag from
@@ -67,7 +67,7 @@ run;
                       using (rowID)';
 run;
 
-		/* drop the table holding the bootstrap sampling structure */
+		/* drop the table holding the bootstrap resampling structure */
     dropTable name=intable||'_bskey';
 quit;
 

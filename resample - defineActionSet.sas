@@ -78,7 +78,7 @@ proc cas;
 			}
 			{
 				name = "doubleBootstrap"
-				desc = "Create a table with double bootstrap resamples of input table sample_bs created by the bootstrap action"
+				desc = "Create a table with double-bootstrap resamples of input table sample_bs created by the bootstrap action"
 				parms = {
 					{name="intable" type="string" required=TRUE}
 					{name="B" type="int" required=TRUE default=10}

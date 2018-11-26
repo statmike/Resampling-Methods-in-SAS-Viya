@@ -19,7 +19,7 @@ proc cas;
 run;
 
 		/* check to see if resample.bootstrap has already been run
-      		if not the run it first to get bootstrap samples for double sampling */
+      		if not then run it first to get bootstrap resamples for double-bootstrap resampling */
 		builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
     table.tableExists result=c / name=intable||'_bs';
       if c.exists then do;
@@ -38,14 +38,14 @@ run;
 				bss=ceil(B/q[1,1].M);
 run;
 
-		/* create a structure for the double bootstrap sampling.
-		      Will make samples equal to the size of the original table
+		/* create a structure for the double-bootstrap sampling.
+		      Will make resamples equal to the size of the original table
 		      these instructions are sent to each _threadid_ which will have bss bootstrap resamples
-		          it then creates bss*nthreads samples - double bootstrap
+		          it then creates bss*nthreads resamples - double-bootstrap
 		          example: if you environment has 48 threads (maybe 3 workers with 16 threads each)
 		                    bss=10 will create 480 bootstrap resamples
-		                    each bootstrap sample will yield 480 double bootstrap samples
-		                    480*480 = 230,400 double bootstrap samples */
+		                    each bootstrap resample will yield 480 double-bootstrap resamples
+		                    480*480 = 230,400 double-bootstrap resamples */
     simple.numRows result=r / table=intable;
     datastep.runcode result=t / code='data '|| intable ||'_dbskey;
                         call streaminit(12345);
@@ -63,7 +63,7 @@ run;
                       run;';
 run;
 
-		/* merge the double bootstrap structure with the bootstrap structure data
+		/* merge the double-bootstrap structure with the bootstrap structure data
       		to link dbs_rowID to bs_rowID and get the actual original rowID */
     fedSql.execDirect / query='create table '|| intable ||'_dbskey {options replace=true} as
                     select * from
@@ -75,7 +75,7 @@ run;
 
 		/* use some fancy sql to merge the bootstrap structure with the sample data
       		and include the unsampled rows with bag=0
-        			note unsampled (bag=0) includes unsampled in bootstrap and double bootstrap */
+        			note unsampled (bag=0) includes unsampled in bootstrap and double-bootstrap */
     fedSql.execDirect / query='create table '|| intable ||'_dbs {options replace=true} as
                     select * from
                       (select b.bsID, b.dbsID, b.rowID, c.bs_rowID, c.dbs_rowID, CASE when c.bag is null then 0 else c.bag END as bag from
@@ -89,7 +89,7 @@ run;
                       using (rowID)';
 run;
 
-		/* drop the table holding the bootstrap sampling structure */
+		/* drop the table holding the bootstrap resampling structure */
 		dropTable name=intable||'_dbskey';
 quit;
 

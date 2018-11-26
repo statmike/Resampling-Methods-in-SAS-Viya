@@ -1,7 +1,7 @@
 understanding distributed data in sas
 	look at proc that brings data back
 		look at it with a where statement - only some rows
-		
+
 
 
 cas mysess sessopts=(caslib='casuser');
@@ -229,11 +229,10 @@ quit;
 
 
 
-/* create the bootstrap samples - look at the sample file after running */
+/* create the bootstrap resamples - look at the sample file after running */
 proc cas;
-	builtins.actionSetFromTable / table={caslib="Public"
-		name="demoActionSet.sashdat"} name="mikeH";
-	mikeH.bootstrap / intable='cars' bss=2;
+	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
+	resample.bootstrap / intable='cars' B=10;
 run;
 		data mylib.cars;
 			set mylib.cars;
