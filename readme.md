@@ -31,7 +31,7 @@ Run the code in [resample - defineActionSet.sas](./resample%20-%20defineActionSe
   * line 133: removes the persisted in-memory table
 
 ## Actions Instructions
-To use the actions you will need to load the user define actions with:
+To use the actions you will need to load the user defined actions with:
 ```SAS
 builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
 ```
@@ -73,12 +73,13 @@ Parameter Descriptions
       specifies the name of the table to resample from in CAS
     B=integer
       required
-      Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
+      Specifies the desired number of bootstrap resamples.  
+        Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
 ```
 
 ---
 ### resample.doubleBootstrap action
-Creates a table of identically sized bootstrap and double-bootstrap resamples from table <intable> and stores them in a tables <intable>_bs and <intable>_dbs.  Runs the addRowID action on the <intable>.  Columns that describe the link between the double-bootstrap resamples and the bootstrap resamples are:
+Creates a table of identically sized bootstrap and double-bootstrap resamples from table <intable> and stores them in tables <intable>_bs and <intable>_dbs.  Runs the addRowID action on the <intable>.  If the bootstrap action has already been run on table <intable> then a table <intable>_bs already exist and will be used for double-bootstraping.  Columns that describe the link between the double-bootstrap resamples and the bootstrap resamples are:
 * bsID - is the naturally numbered (1, 2, ..., b) identifier of a resample
 * dbsID - is the naturally numbered (1, 2, ..., d) identifier of a resample from a bsID
 * dbs_rowID - is the naturally numbered (1, 2, ..., n) row identifier within the value of dbsID
@@ -103,7 +104,7 @@ Parameter Descriptions
     B=integer
       required
       Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
-      If you run resample.bootstrap first then make sure you used the same value of B.
+      If you run resample.bootstrap first then you should use the same value of B (it will ignore the value and use the value from the prior bootstrap).
           If you don't run resample.bootstrap first then resample.doubleBootstrap will do it correctly.
     D=integer
       required

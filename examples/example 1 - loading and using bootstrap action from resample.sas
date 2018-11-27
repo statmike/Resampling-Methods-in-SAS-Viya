@@ -11,14 +11,70 @@ quit;
 */
 proc cas;
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
-	resample.bootstrap / intable='sample' B=100;
-	*resample.doubleBootstrap / intable='sample' B=100;
 run;
-/*
-test bs first
-test dbs after bs
-test dbs without bs first
-*/
 
+/* bootstrap */
+proc cas;
+	resample.bootstrap / intable='sample' B=100;
+			/*  take a look at how the table is distributed in the CAS environment */
+			datastep.runcode result=t / code='data sample_bs; set sample_bs; host=_hostname_; threadid=_threadid_; run;';
+			simple.crossTab / table={name="sample_bs" where="bag=1"} row="bsid" col="host" aggregator="N";
+			simple.crossTab / table={name="sample_bs" where="bag=1"} row="bsid" col="threadid" aggregator="N";
+run;
 
+/* double-bootstrap after bootstrap */
+proc cas;
+	resample.doubleBootstrap / intable='sample' B=100 D=10;
+			/*  take a look at how the table is distributed in the CAS environment */
+			datastep.runcode result=t / code='data sample_dbs; set sample_dbs; host=_hostname_; threadid=_threadid_; run;';
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=1"} row="dbsid" col="host" aggregator="N";
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=1"} row="dbsid" col="threadid" aggregator="N";
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=128"} row="dbsid" col="host" aggregator="N";
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=128"} row="dbsid" col="threadid" aggregator="N";
+run;
+
+/* double-bootstrap after bootstrap - give wrong B? (it gets ignorned because it detects B from prior bootstrap) */
+proc cas;
+	resample.doubleBootstrap / intable='sample' B=10 D=10;
+			/*  take a look at how the table is distributed in the CAS environment */
+			datastep.runcode result=t / code='data sample_dbs; set sample_dbs; host=_hostname_; threadid=_threadid_; run;';
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=1"} row="dbsid" col="host" aggregator="N";
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=1"} row="dbsid" col="threadid" aggregator="N";
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=128"} row="dbsid" col="host" aggregator="N";
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=128"} row="dbsid" col="threadid" aggregator="N";
+run;
+
+/* double-bootstrap without first running bootstrap */
+proc cas;
+	dropTable name="sample_bs";
+	dropTable name="sample_dbs";
+	resample.doubleBootstrap / intable='sample' B=100 D=10;
+			/*  take a look at how the table is distributed in the CAS environment */
+			datastep.runcode result=t / code='data sample_bs; set sample_bs; host=_hostname_; threadid=_threadid_; run;';
+			simple.crossTab / table={name="sample_bs" where="bag=1"} row="bsid" col="host" aggregator="N";
+			simple.crossTab / table={name="sample_bs" where="bag=1"} row="bsid" col="threadid" aggregator="N";
+			datastep.runcode result=t / code='data sample_dbs; set sample_dbs; host=_hostname_; threadid=_threadid_; run;';
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=1"} row="dbsid" col="host" aggregator="N";
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=1"} row="dbsid" col="threadid" aggregator="N";
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=128"} row="dbsid" col="host" aggregator="N";
+			simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=128"} row="dbsid" col="threadid" aggregator="N";
+run;
+
+/* different size double-bootstrap */
+proc cas;
+		dropTable name="sample_bs";
+		dropTable name="sample_dbs";
+		resample.doubleBootstrap / intable='sample' B=100 D=100;
+				/*  take a look at how the table is distributed in the CAS environment */
+				datastep.runcode result=t / code='data sample_bs; set sample_bs; host=_hostname_; threadid=_threadid_; run;';
+				simple.crossTab / table={name="sample_bs" where="bag=1"} row="bsid" col="host" aggregator="N";
+				simple.crossTab / table={name="sample_bs" where="bag=1"} row="bsid" col="threadid" aggregator="N";
+				datastep.runcode result=t / code='data sample_dbs; set sample_dbs; host=_hostname_; threadid=_threadid_; run;';
+				simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=1"} row="dbsid" col="host" aggregator="N";
+				simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=1"} row="dbsid" col="threadid" aggregator="N";
+				simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=128"} row="dbsid" col="host" aggregator="N";
+				simple.crossTab / table={name="sample_dbs" where="bag=1 and bsid=128"} row="dbsid" col="threadid" aggregator="N";
+run;
+
+quit;
 *cas mysess clear;

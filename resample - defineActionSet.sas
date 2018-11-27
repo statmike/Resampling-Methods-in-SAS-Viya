@@ -73,6 +73,7 @@ proc cas;
 																left join
 																'|| intable ||'
 																using (rowID)';
+							partition / casout={name=intable||'_bs', replace=TRUE} table={name=intable||'_bs', groupby={{name='bsID'}}};
 							dropTable name=intable||'_bskey';
 							resp.bss=bss;
 							send_response(resp);
@@ -89,22 +90,22 @@ proc cas;
 				definition = "
 							table.tableExists result=c / name=intable||'_bs';
 								if c.exists then do;
-										/*calculate bss here*/
+										/* calculate bss */
 										datastep.runcode result=t / code='data tempholdbss; set '|| intable || '_bs; threadid=_threadid_; nthreads=_nthreads_; run;';
-												fedsql.execDirect result=q / query='select max(bscount) as bss from (select count(*) as bscount from (select distinct bsID, threadid from tempholdbss) group by threadid)';
+												fedsql.execDirect result=q / query='select max(bscount) as bss from (select count(*) as bscount from (select distinct bsID, threadid from tempholdbss) a group by threadid) b';
 												dropTable name='tempholdbss';
 												bss=q[1,1].bss;
 								end;
 								else; do;
-									resample.bootstrap r=r / intable=intable B=B;
-									bss=r.bss;
+									bootstrap result=r / intable=intable B=B;
+									*describe(r);
+									*print r.bss;
+											/* calculate bss, can this be retrieved as response from the bootsrap action (not working) */
+											datastep.runcode result=t / code='data tempholdbss; set '|| intable || '_bs; threadid=_threadid_; nthreads=_nthreads_; run;';
+													fedsql.execDirect result=q / query='select max(bscount) as bss from (select count(*) as bscount from (select distinct bsID, threadid from tempholdbss) a group by threadid) b';
+													dropTable name='tempholdbss';
+													bss=q[1,1].bss;
 								end;
-								/*
-							datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
-									fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
-									dropTable name='tempholdb';
-									bss=ceil(B/q[1,1].M);
-									*/
 							simple.numRows result=r / table=intable;
 							datastep.runcode result=t / code='data '|| intable ||'_dbskey;
 															  	call streaminit(12345);
@@ -137,6 +138,7 @@ proc cas;
 																left join
 																'|| intable ||'
 																using (rowID)';
+							partition / casout={name=intable||'_dbs', replace=TRUE} table={name=intable||'_dbs', groupby={{name='bsID'},{name='dbsID'}}};
 							dropTable name=intable||'_dbskey';
 				"
 			}
@@ -148,5 +150,5 @@ proc cas;
 		*table.deleteSource / Source="resampleActionSet.sashdat" caslib="Public";
 run;
 
-
-*cas mysess clear;
+quit;
+cas mysess clear;

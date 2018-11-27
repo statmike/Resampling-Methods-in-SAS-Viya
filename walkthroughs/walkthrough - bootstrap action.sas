@@ -52,6 +52,12 @@ run;
                  run;';
 run;
 
+	/*  take a look at how the table is distributed in the CAS environment */
+	datastep.runcode result=t / code='data '||intable||'_bskey; set '||intable||'_bskey; host=_hostname_; threadid=_threadid_; run;';
+	simple.crossTab / table={name=intable||"_bskey" where="bag=1"} row="bsid" col="host" aggregator="N";
+	simple.crossTab / table={name=intable||"_bskey" where="bag=1"} row="bsid" col="threadid" aggregator="N";
+run;
+
 		/* use some fancy sql to merge the bootstrap structure with the sample data
       		and include the rows not resampled with bag=0 */
     fedSql.execDirect / query='create table '|| intable ||'_bs {options replace=true} as
@@ -67,18 +73,32 @@ run;
                       using (rowID)';
 run;
 
-		/* drop the table holding the bootstrap resampling structure */
-    dropTable name=intable||'_bskey';
-quit;
-
-/* review the output table sample_bs */
-proc cas;
-/*
-how many bsID
-	how many bsID per _threadid_
-how many rows each (bag and OOB)
-*/
+		/*  take a look at how the table is distributed in the CAS environment */
+		datastep.runcode result=t / code='data '||intable||'_bs; set '||intable||'_bs; host=_hostname_; threadid=_threadid_; run;';
+		simple.crossTab / table={name=intable||"_bs" where="bag=1"} row="bsid" col="host" aggregator="N";
+		simple.crossTab / table={name=intable||"_bs" where="bag=1"} row="bsid" col="threadid" aggregator="N";
 run;
 
+		/* rebalance the table by partitioning by bsID, this will ensure all the same values of bsID are on the same host but not necessarily the same _threadid_ */
+		partition / casout={name=intable||'_bs', replace=TRUE} table={name=intable||'_bs', groupby={{name="bsID"}}};
+run;
+
+		/*  take a look at how the table is distributed in the CAS environment */
+		datastep.runcode result=t / code='data '||intable||'_bs; set '||intable||'_bs; host=_hostname_; threadid=_threadid_; run;';
+		simple.crossTab / table={name=intable||"_bs" where="bag=1"} row="bsid" col="host" aggregator="N";
+		simple.crossTab / table={name=intable||"_bs" where="bag=1"} row="bsid" col="threadid" aggregator="N";
+		alterTable / name=intable||"_bs" columns={{name='host', drop=TRUE},{name='threadid', drop=TRUE}};
+run;
+
+		/* drop the table holding the bootstrap resampling structure */
+    dropTable name=intable||'_bskey';
+run;
+
+		/* allow the action to have a response value, in this case the value of bss stored in a variable named bss */
+		*resp.bss=bss;
+		*send_response(resp);
+run;
+
+quit;
 
 *cas mysess clear;
