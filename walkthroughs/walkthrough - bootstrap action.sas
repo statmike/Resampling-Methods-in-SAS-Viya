@@ -102,3 +102,28 @@ run;
 quit;
 
 *cas mysess clear;
+
+/* create full bootstrap sampled file with bag (sampled) and oob (unsampled) rows
+logic for sample_bs:
+	input tables:
+		sample: source, rowID identifies unique rows
+		sample_bskey: bsID, bs_rowID identifies unique rows
+			has rowID to connect the bs_rowID to the sampled rowID in cars
+	Merge Flow:
+		1: cartisian join of distinct sample_bskey.bsID with sample - keep bsID, rowID
+			rows 3-4
+		2: join (1) with sample_bskey.(bsID, bs_rowID, rowID, bag), use case to assign bag=0 to unmatched rows
+			rows (1) + 5-7
+		3: left join (2) to sample data on rowID to populate source table columns
+			rows 1-2 + (2) + 8-10
+1	select * from
+2		(select b.bsID, b.rowID, c.bs_rowID, CASE when c.bag is null then 0 else c.bag END as bag from
+3			(select bsID, rowID from
+4				(select distinct bsID from sample_bskey) as a, sample) as b
+5			full join
+6			(select bsID, bs_rowID, rowID, bag from sample_bskey) c
+7			using (bsID, rowID)) d
+8		left join
+9		sample
+10		using (rowID)
+*/

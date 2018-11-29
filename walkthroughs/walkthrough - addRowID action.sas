@@ -52,3 +52,33 @@ run;
 quit;
 
 *cas mysess clear;
+
+
+/*
+logic for unique rowID:
+	input table: by processing as cas table into itself and keeping these automatic datastep variables:
+		_nthreads_ is number of threads in the environment
+		_threadid_ is the partition of rows assigned to a thread - these are naturally numbered in the environment
+		_n_ is the natural number row count for row assigned to a _threadid_
+	merge flow:
+		1: rows 8-11  - keep threadid and a count of rows for smaller values of threadid
+			left=distinct threadid, right=threadid, threadcount
+			on right(b).threadid<left(a).threadid (will help get a cumulative count of rows)
+		2: rows 7-12(includes step 1) - keep threadid and the sum of rows on all smaller threadid values
+		3: rows 4-13(includes step 2) - keep threadid and n along with natural number rowID built from n and sum of rows on lower values of threadid
+		4: rows 1-14(includes step 2) - merge original data with the above to get unique rowID using threadid, n
+1	select * from
+2		sample
+3		join
+4		(select c.threadid, c.n, c.n+ifnull(d.basecount,0) as rowID from
+5			(select threadid, n from sample) c
+6			left outer join
+7			(select a.threadid, sum(b.threadcount) as basecount from
+8					((select distinct threadid from sample) a
+9					left outer join
+10					(select threadid, count(*) as threadcount from sample group by threadid) b
+11					on b.threadid < a.threadid)
+12					group by a.threadid) d
+13			on c.threadid=d.threadid) e
+14		using(threadid,n)'
+*/
