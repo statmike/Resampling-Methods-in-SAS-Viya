@@ -9,7 +9,25 @@ libname mylib cas sessref=mysess;
 
 
 
-
+/* load to CAS and examine distribution using action */
+libname myloc '/home/mihend/sasuser.viya/Bootstrap';
+data myloc.cars; set sashelp.cars; do i=1 to 1001; output; end; drop i; run;
+proc cas;
+	upload path="/home/mihend/sasuser.viya/Bootstrap/cars.sas7bdat" casout={name="cars" replace=TRUE} importoptions={filetype="BASESAS"};
+run;
+data mylib.cars;
+	set mylib.cars;
+	n=_n_;
+	nthread=_nthreads_;
+	thread=_threadid_;
+	host=_hostname_;
+run;
+		proc cas;
+			table.tabledetails / level="node" table="cars";
+			simple.summary result=r / inputs={"N"} subSet={"MAX", "MIN", "N"}
+				table={name="cars", groupBy={"nthread", "host", "thread"}}
+				casout={name="cars_dist", replace=TRUE};
+		run;
 
 
 
