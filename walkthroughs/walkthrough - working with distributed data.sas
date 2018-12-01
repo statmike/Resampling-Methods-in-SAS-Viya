@@ -7,17 +7,31 @@
 
 /* setup a session */
 		cas mysess sessopts=(caslib='casuser');
-		libname mylib cas sessref=mysess;
+		libname mycas cas sessref=mysess;
 
 /* data for examples */
-		libname myloc "&locpath.";
+		libname mylocal "&locpath.";
 		data myloc.cars; set sashelp.cars; run;
 		data myloc.carsbig; set sashelp.cars; do i=1 to 10; output; end; drop i; run;
 		data myloc.carsbigger; set sashelp.cars; do i=1 to 100; output; end; drop i; run;
 		data myloc.carsbiggest; set sashelp.cars; do i=1 to 1000; output; end; drop i; run;
 
-/* function for adding automatic variables to dataset and looking at distribution of tables */
-
+/* 2 functions for adding automatic variables to dataset and looking at distribution of tables
+		%include later: https://documentation.sas.com/?cdcId=pgmsascdc&cdcVersion=9.4_3.4&docsetId=lestmtsglobal&docsetTarget=p1s3uhhqtscz2sn1otiatbovfn1t.htm&locale=en
+		*/
+		proc cas;
+		   function addautos(intable);
+			 		datastep.runcode result=t / code='data intable; set intable; n=_n_; nthread=_nthreads_; thread=_threadid_; host=_hostname_; run;';
+					return(t);
+		   end func;
+			 function summtab(intable);
+				 table.tabledetails / level="node" table=intable;
+				 simple.summary result=r / inputs={"N"} subSet={"MAX", "MIN", "N"}
+					 table={name=intable, groupBy={"nthread", "host", "thread"}}
+					 casout={name=intable||"_dist", replace=TRUE};
+			 	 return(r);
+			 end func;
+		run;
 
 /* Load Cars
 			From: local
@@ -27,9 +41,12 @@
 */
 		proc cas;
 			upload path="&locpath./cars.sas7bdat" casout={name="cars" replace=TRUE} importoptions={filetype="BASESAS"};
+			%include 23-33;
+			t=addautos(cars);
+			r=summtab(cars);
 		run;
-		data mylib.cars;
-			set mylib.cars;
+		data mycas.cars;
+			set mycas.cars;
 			n=_n_;
 			nthread=_nthreads_;
 			thread=_threadid_;
@@ -48,8 +65,8 @@
 			With: Data Step
 			and examine distribution
 */
-		data mylib.cars;
-			set sashelp.cars;
+		data mycas.cars;
+			set mylocal.cars;
 			n=_n_;
 			nthread=_nthreads_;
 			thread=_threadid_;
@@ -62,8 +79,8 @@
 						casout={name="cars_dist", replace=TRUE};
 				run;
 				/* redo auto variables examine distribution From: CAS To: CAS */
-						data mylib.cars;
-							set mylib.cars;
+						data mycas.cars;
+							set mycas.cars;
 							n=_n_;
 							nthread=_nthreads_;
 							thread=_threadid_;
@@ -83,10 +100,10 @@
 			and examine distribution
 */
 		proc casutil;
-			load data=sashelp.cars casout="cars" replace;
+			load data=mylocal.cars casout="cars" replace;
 		quit;
-				data mylib.cars;
-					set mylib.cars;
+				data mycas.cars;
+					set mycas.cars;
 					n=_n_;
 					nthread=_nthreads_;
 					thread=_threadid_;
@@ -108,8 +125,8 @@
 		proc cas;
 			shuffle / casout={name="cars", replace=TRUE} table="cars";
 		run;
-				data mylib.cars;
-					set mylib.cars;
+				data mycas.cars;
+					set mycas.cars;
 					n=_n_;
 					nthread=_nthreads_;
 					thread=_threadid_;
@@ -126,8 +143,8 @@
 		proc cas;
 			partition / casout={name="cars", replace=TRUE} table={name="cars", groupby={{name="Make"}}};
 		run;
-				data mylib.cars;
-					set mylib.cars;
+				data mycas.cars;
+					set mycas.cars;
 					n=_n_;
 					nthread=_nthreads_;
 					thread=_threadid_;
@@ -160,7 +177,7 @@
 			With: Data Step
 			and examine distribution
 */
-		data mylib.temp / sessref=mysess;
+		data mycas.temp / sessref=mysess;
 			do i = 1 to 2;
 				n=_n_;
 				nthread=_nthreads_;
@@ -176,8 +193,8 @@
 						casout={name="temp_dist", replace=TRUE};
 				run;
 				/* redo auto variables and examine distribution */
-						data mylib.temp;
-							set mylib.temp;
+						data mycas.temp;
+							set mycas.temp;
 							n=_n_;
 							nthread=_nthreads_;
 							thread=_threadid_;
@@ -202,8 +219,8 @@ proc cas;
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
 	resample.bootstrap / intable='cars' B=10;
 run;
-		data mylib.cars;
-			set mylib.cars;
+		data mycas.cars;
+			set mycas.cars;
 			n=_n_;
 			nthread=_nthreads_;
 			thread=_threadid_;
@@ -220,8 +237,8 @@ run;
 proc cas;
 	resample.addRowID / intable='cars';
 run;
-		data mylib.cars;
-			set mylib.cars;
+		data mycas.cars;
+			set mycas.cars;
 			n=_n_;
 			nthread=_nthreads_;
 			thread=_threadid_;
