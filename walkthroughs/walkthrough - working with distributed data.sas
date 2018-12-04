@@ -11,27 +11,34 @@
 
 /* data for examples */
 		libname mylocal "&locpath.";
-		data myloc.cars; set sashelp.cars; run;
-		data myloc.carsbig; set sashelp.cars; do i=1 to 10; output; end; drop i; run;
-		data myloc.carsbigger; set sashelp.cars; do i=1 to 100; output; end; drop i; run;
-		data myloc.carsbiggest; set sashelp.cars; do i=1 to 1000; output; end; drop i; run;
+		data mylocal.cars; set sashelp.cars; run;
+		data mylocal.carsbig; set sashelp.cars; do i=1 to 10; output; end; drop i; run;
+		data mylocal.carsbigger; set sashelp.cars; do i=1 to 100; output; end; drop i; run;
+		data mylocal.carsbiggest; set sashelp.cars; do i=1 to 1000; output; end; drop i; run;
 
 /* 2 functions for adding automatic variables to dataset and looking at distribution of tables
 		%include later: https://documentation.sas.com/?cdcId=pgmsascdc&cdcVersion=9.4_3.4&docsetId=lestmtsglobal&docsetTarget=p1s3uhhqtscz2sn1otiatbovfn1t.htm&locale=en
 		*/
-		proc cas;
-		   function addautos(intable);
-			 		datastep.runcode result=t / code='data intable; set intable; n=_n_; nthread=_nthreads_; thread=_threadid_; host=_hostname_; run;';
-					return(t);
-		   end func;
-			 function summtab(intable);
-				 table.tabledetails / level="node" table=intable;
-				 simple.summary result=r / inputs={"N"} subSet={"MAX", "MIN", "N"}
-					 table={name=intable, groupBy={"nthread", "host", "thread"}}
-					 casout={name=intable||"_dist", replace=TRUE};
-			 	 return(r);
-			 end func;
-		run;
+options spool;
+proc cas;
+	function addautos(intable);
+		datastep.runcode result=t / code='data '||intable||'; set '||intable||'; n=_n_; nthread=_nthreads_; thread=_threadid_; host=_hostname_; run;';
+		return(t);
+	end func;
+	function summtab(intable);
+		table.tabledetails / level="node" table=intable;
+		simple.summary result=r / inputs={"N"} subSet={"MAX", "MIN", "N"}
+		table={name=intable, groupBy={"nthread", "host", "thread"}}
+		casout={name=intable||"_dist", replace=TRUE};
+		return(r);
+	end func;
+
+	upload path="&locpath./cars.sas7bdat" casout={name="cars" replace=TRUE} importoptions={filetype="BASESAS"};
+	*%include 23-33;
+	t=addautos("cars");
+	r=summtab("cars");
+run;
+%list;
 
 /* Load Cars
 			From: local
@@ -41,7 +48,7 @@
 */
 		proc cas;
 			upload path="&locpath./cars.sas7bdat" casout={name="cars" replace=TRUE} importoptions={filetype="BASESAS"};
-			%include 23-33;
+			%include 96-106;
 			t=addautos(cars);
 			r=summtab(cars);
 		run;
