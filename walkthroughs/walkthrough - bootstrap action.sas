@@ -37,7 +37,6 @@ run;
 		/* create a structure for the bootstrap sampling.
       		Will make resamples equal to the size of the original table
       		these instructions are sent to each _threadid_ and replicated bss times */
-    simple.numRows result=r / table=intable;
     datastep.runcode result=t / code='data '|| intable ||'_bskey;
                   call streaminit(12345);
                   do bs = 1 to '|| bss ||';

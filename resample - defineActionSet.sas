@@ -142,6 +142,33 @@ proc cas;
 							dropTable name=intable||'_dbskey';
 				"
 			}
+			{
+				name = "jackknife"
+				desc = "Create a table with jackknife resamples of input table"
+				parms = {
+					{name="intable" type="string" required=TRUE}
+				}
+				definition = "
+							resample.addRowID / intable=intable;
+							simple.numRows result=r / table=intable;
+							datastep.runcode result=t / code='data '|| intable ||'_jkkey;
+														do jkID = 1 to '|| r.numrows ||';
+												 			do rowID = 1 to '|| r.numrows ||';
+																bag=1;
+																if jkID ne rowID then output;
+															end;
+														end;
+													run;' single='YES';
+							fedSql.execDirect / query='create table '|| intable ||'_jk {options replace=true} as
+															select * From
+																(select jkID, rowID, bag from '|| intable ||'_jkkey) a
+																join
+																(select * from '|| intable ||') b
+																using(rowID)';
+							partition / casout={name=intable||'_jk', replace=TRUE} table={name=intable||'_jk', groupby={{name='jkID'}}};
+							dropTable name=intable||'_jkkey';
+				"
+			}
 		}
 	;
 	builtins.actionSetToTable / actionset="resample" casOut={caslib="casuser" name="resample" replace=True};
