@@ -49,6 +49,7 @@ builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sas
 ---
 ### Relationship Map
 This is a reference chart for the relationship between the actions and their output tables.
+
 ![Relationship Map](./docs/images/RelationshipMap50p.png)
 ---
 ### resample.addRowID action
