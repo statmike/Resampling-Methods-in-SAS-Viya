@@ -55,10 +55,10 @@ builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sas
 ## Syntax Reference
 Table of contents:
 * [Relationship Map](#relationship-map)
-* [resample.addRowID action](#resample-addRowID-action)
-* [resample.bootstrap action](#resample-bootstrap-action)
-* [resampe.doubleBootstrap action](#resample-doubleBootstrap-action)
-* [resample.jackknife action](#resample-jackknife-action)
+* [resample.addRowID action](#resampleaddRowID-action)
+* [resample.bootstrap action](#resamplebootstrap-action)
+* [resampe.doubleBootstrap action](#resampledoubleBootstrap-action)
+* [resample.jackknife action](#resamplejackknife-action)
 
 ### Relationship Map
 This is a reference chart for the relationship between the actions and their output tables.
