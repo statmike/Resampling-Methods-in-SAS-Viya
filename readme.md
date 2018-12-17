@@ -46,6 +46,12 @@ To use the actions you will need to load the user defined actions with:
 builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
 ```
 # Syntax Reference
+Table of contents:
+* [Relationship Map](#relationship-map)
+* [resample.addRowID action](#resample.addRowID-action)
+* [resample.bootstrap action](#resample.bootstrap-action)
+* [resampe.doubleBootstrap action](#resample.doubleBootstrap-action)
+* [resample.jackknife action](#resample.jackknife-action)
 ---
 ### Relationship Map
 This is a reference chart for the relationship between the actions and their output tables.
@@ -131,7 +137,7 @@ Parameter Descriptions
 ```
 ---
 
-### resample.jackknife actions
+### resample.jackknife action
 Creates a table of jackknife resamples from table `<intable>` and stores them in table `<intable>_jk`.  Runs the addRowID action on the `<intable>`.  There will be J resamples identified with jkID, where J is equal to the number of rows in `<intable>`.  The values of jkID are numbered 1, 2, ... n and each has rows identified by rowID.  When rowID from `<intable>` is equal to jkID the row is deleted/omitted.  
 * jkID - is the naturally numbered (1, 2, ..., n) identifier of a resample
 * rowID - is the naturally numbered (1, 2, ..., n) row identifier for the resample row in `<intable>`
