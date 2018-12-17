@@ -47,8 +47,14 @@ builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sas
 ```
 # Syntax Reference
 ---
+### Relationship Map
+This is a reference chart for the relationship between the actions and their output tables.
+![Relationship Map](./docs/images/RelationshipMap50p.png)
+---
 ### resample.addRowID action
 Updates the provided table <intable> with a new column named RowID that has a naturally numbered (1,2,...,n) across the distributed in-memory table.
+* rowID - is the naturally numbered (1, 2, ..., n) row identifier for the sampled row in `<intable>`
+
 ```
 CASL Syntax
 
