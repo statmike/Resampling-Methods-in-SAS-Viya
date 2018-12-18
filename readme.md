@@ -45,6 +45,7 @@ To use the actions you will need to load the user defined actions with:
 ```SAS
 builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
 ```
+
 ---
 # References
 * [Syntax Reference](#Syntax-Reference)
@@ -169,12 +170,18 @@ Parameter Descriptions
 * Bootstrap
   * Take a sample dataset with rows 1, ..., n.  Create B resamples with replacement from the sample dataset.  Each resample with also have n rows.  Rows included in a resample, b, are called bagged.  Rows not selected for a particular resample, b, are called out-of-bag.
   
-  ![Bootstrap](./docs/images/Bootstrap50p.gif)
+  ![Bootstrap](./docs/images/bootstrap50p.gif)
   
 * Double-bootstrap
   * First bootstrap as described above to create B resamples.  For each resample, b, do subsequent resamples called double-bootstraps.  Each of these double-bootstraps also have n rows where the rows are sampled with replacement from the corresponding bootstrap sample.
   
-  ![Double-Bootstrap](./docs/images/DoubleBootstrap50p.png)
+  ![Double-Bootstrap](./docs/images/doubleBootstrap50p.gif)
   
 * jackknife
-  * This resampling technique takes resamples of size n-1 from the original sample of size n.  There will be J=n jackknife resamples where each has N-1 rows and the missing row is J=n.
+  * This resampling technique takes resamples of size n-1 from the original sample of size n.  There will be J=n jackknife resamples where each has N-1 rows and the missing row is j=n.
+
+  ![Jackknife](./docs/images/jackknife50p.gif)
+  
+  ---
+  
+  #Thank You!  I Appreciate All Feedback!
