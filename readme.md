@@ -162,12 +162,19 @@ Parameter Descriptions
 # Further SAS References
 * [SAS Support Supplied macros for Bootstrap, Jacknife and some bias and confidence interval computations](http://support.sas.com/kb/24/982.html)
 * [The DO Loop Blog: The essential guide to bootstrapping in SAS](https://blogs.sas.com/content/iml/2018/12/12/essential-guide-bootstrapping-sas.html)
+
 ---
 
 # Method Desriptions
 * Bootstrap
   * Take a sample dataset with rows 1, ..., n.  Create B resamples with replacement from the sample dataset.  Each resample with also have n rows.  Rows included in a resample, b, are called bagged.  Rows not selected for a particular resample, b, are called out-of-bag.
+  
+  ![Bootstrap](./docs/images/Bootstrap50p.gif)
+  
 * Double-bootstrap
   * First bootstrap as described above to create B resamples.  For each resample, b, do subsequent resamples called double-bootstraps.  Each of these double-bootstraps also have n rows where the rows are sampled with replacement from the corresponding bootstrap sample.
+  
+  ![Double-Bootstrap](./docs/images/DoubleBootstrap50p.png)
+  
 * jackknife
   * This resampling technique takes resamples of size n-1 from the original sample of size n.  There will be J=n jackknife resamples where each has N-1 rows and the missing row is J=n.
