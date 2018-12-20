@@ -9,7 +9,7 @@ proc cas;
 				name = "addRowID"
 				desc = "Add a naturally numbered (1,... n) column to a CAS Table"
 				parms = {
-					{name="intable" type="string" required=TRUE}
+					{name="intable", type="STRING", required=TRUE}
 				}
 				definition = "
 							table.columninfo result=i / table=intable;
@@ -40,8 +40,10 @@ proc cas;
 				name = "bootstrap"
 				desc = "Create a table with bootstrap resamples of input table"
 				parms = {
-					{name="intable" type="string" required=TRUE}
-					{name="B" type="int" required=TRUE default=100}
+					{name="intable", type="STRING", required=TRUE},
+					{name="B", type="INT", required=TRUE},
+					{name="seed", type="INT", required=TRUE},
+					{name="Bpct", type="DOUBLE", required=TRUE}
 				}
 				definition = "
 							resample.addRowID / intable=intable;
@@ -50,11 +52,12 @@ proc cas;
 									dropTable name='tempholdb';
 									bss=ceil(B/q[1,1].M);
 							simple.numRows result=r / table=intable;
+									r.Bpctn=CEIL(r.numrows*Bpct);
 							datastep.runcode result=t / code='data '|| intable ||'_bskey;
-														call streaminit(12345);
+														call streaminit('|| seed ||');
 														do bs = 1 to '|| bss ||';
 															bsID = (_threadid_-1)*'|| bss ||' + bs;
-															do bs_rowID = 1 to '|| r.numrows ||';
+															do bs_rowID = 1 to '|| r.Bpctn ||';
 													 			rowID = int(1+'|| r.numrows ||'*rand(''Uniform''));
 													 			bag=1;
 													 			output;
@@ -83,9 +86,12 @@ proc cas;
 				name = "doubleBootstrap"
 				desc = "Create a table with double-bootstrap resamples of input table sample_bs created by the bootstrap action"
 				parms = {
-					{name="intable" type="string" required=TRUE}
-					{name="B" type="int" required=TRUE default=10}
-					{name="D" type="int" required=TRUE default=10}
+					{name="intable", type="STRING", required=TRUE},
+					{name="B", type="INT", required=TRUE},
+					{name="D", type="INT", required=TRUE},
+					{name="seed", type="INT", required=TRUE},
+					{name="Bpct", type="DOUBLE", required=TRUE},
+					{name="Dpct", type="DOUBLE", required=TRUE}
 				}
 				definition = "
 							table.tableExists result=c / name=intable||'_bs';
@@ -97,7 +103,7 @@ proc cas;
 												bss=q[1,1].bss;
 								end;
 								else; do;
-									bootstrap result=r / intable=intable B=B;
+									bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct;
 									*describe(r);
 									*print r.bss;
 											/* calculate bss, can this be retrieved as response from the bootsrap action (not working) */
@@ -107,13 +113,15 @@ proc cas;
 													bss=q[1,1].bss;
 								end;
 							simple.numRows result=r / table=intable;
+									r.Bpctn=CEIL(r.numrows*Bpct);
+									r.Dpctn=CEIL(r.Bpctn*Dpct);
 							datastep.runcode result=t / code='data '|| intable ||'_dbskey;
-															  	call streaminit(12345);
+															  	call streaminit('|| seed ||');
 																do bs = 1 to '|| bss ||';
 																	bsID = (_threadid_-1)*'|| bss ||' + bs;
 																		do dbsID = 1 to '|| D ||';
-																			do dbs_rowID = 1 to '|| r.numrows ||';
-																	 			bs_rowID = int(1+'|| r.numrows ||'*rand(''Uniform''));
+																			do dbs_rowID = 1 to '|| r.Dpctn ||';
+																	 			bs_rowID = int(1+'|| r.Bpctn ||'*rand(''Uniform''));
 																	 			bag=1;
 																	 			output;
 																			end;
@@ -146,7 +154,7 @@ proc cas;
 				name = "jackknife"
 				desc = "Create a table with jackknife resamples of input table"
 				parms = {
-					{name="intable" type="string" required=TRUE}
+					{name="intable", type="STRING", required=TRUE}
 				}
 				definition = "
 							resample.addRowID / intable=intable;

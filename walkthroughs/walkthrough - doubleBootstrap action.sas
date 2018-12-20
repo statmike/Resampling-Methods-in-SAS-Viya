@@ -17,6 +17,9 @@ proc cas;
 	 intable='sample';
 	 B=50;
 	 D=50;
+	 seed=12345; /* seed for call streaminit(seed) in the sampling */
+	 Bpct=1; /* The percentage of the original samples rowsize to use as the resamples (Bootstrap) size 1=100% */
+	 Dpct=1; /* The percentage of the original samples rowsize to use as the resamples (DoubleBootstrap) size 1=100% */
 run;
 
 		/* check to see if resample.bootstrap has already been run
@@ -31,7 +34,7 @@ run;
 							bss=q[1,1].bss;
 			end;
 			else; do;
-				bootstrap result=r / intable=intable B=B;
+				bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct;
 				*describe(r);
 				*print r.bss;
 						/* calculate bss, can this be retrieved as response from the bootstrap action (not working) */
@@ -51,13 +54,15 @@ run;
 		                    each bootstrap resample will yield D double-bootstrap resamples
 		                    if D=480 also then 480*480 = 230,400 double-bootstrap resamples */
     simple.numRows result=r / table=intable;
+				r.Bpctn=CEIL(r.numrows*Bpct); /* set r.Bpctn to the fraction of the original sample tables size requested for each bootstrap resample */
+				r.Dpctn=CEIL(r.Bpctn*Dpct); /* set r.Dpctn to the fraction of the bootstrap resample tables size requested for each double-bootstrap resample */
     datastep.runcode result=t / code='data '|| intable ||'_dbskey;
                         call streaminit(12345);
                       do bs = 1 to '|| bss ||';
                         bsID = (_threadid_-1)*'|| bss ||' + bs;
                           do dbsID = 1 to '|| D ||';
-                            do dbs_rowID = 1 to '|| r.numrows ||';
-                              bs_rowID = int(1+'|| r.numrows ||'*rand(''Uniform''));
+                            do dbs_rowID = 1 to '|| r.Dpctn ||';
+                              bs_rowID = int(1+'|| r.Bpctn ||'*rand(''Uniform''));
                               bag=1;
                               output;
                             end;

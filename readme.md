@@ -96,6 +96,8 @@ CASL Syntax
     resample.bootstrap /
       intable="string"
       B=integer
+      Bpct=double
+      seed=integer
 
 Parameter Descriptions
 
@@ -105,8 +107,15 @@ Parameter Descriptions
     B=integer
       required
       Specifies the desired number of bootstrap resamples.  
-        Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
+      Note: Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
+    Bpct=double
+      required (optional with default=1 in the future)
+      The percentage of the samples (intable) rowsize to use as the resamples size 1=100%
+    seed=integer
+      required (optional with default=0 in the future)
+      Sets the seed for random sampling.  If missing, zero, or negative then SAS will compute a default seed.  
 ```
+See the [documentation for Call Streaminit](https://go.documentation.sas.com/?cdcId=pgmsascdc&cdcVersion=9.4_3.3&docsetId=lefunctionsref&docsetTarget=p0gw58qo85qp56n1kbpiz50ww8lv.htm&locale=en) for further information on specifying a seed and changing the random-number generator (RNG).
 
 ### resample.doubleBootstrap action
 Creates a table of identically sized bootstrap and double-bootstrap resamples from table `<intable>` and stores them in tables `<intable>_bs` and `<intable>_dbs`.  Runs the addRowID action on the `<intable>`.  If the bootstrap action has already been run on table `<intable>` then a table `<intable>_bs` already exist and will be used for double-bootstraping.  Columns that describe the link between the double-bootstrap resamples and the bootstrap resamples are:
@@ -125,6 +134,9 @@ CASL Syntax
       intable="string"
       B=integer
       D=integer
+      seed=integer
+      Bpct=double
+      Dpct=double
 
 Parameter Descriptions
 
@@ -134,13 +146,24 @@ Parameter Descriptions
     B=integer
       required
       Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
-      If you run resample.bootstrap first then you should use the same value of B (it will ignore the value and use the value from the prior bootstrap).
+      Note: If you run resample.bootstrap first then you should use the same value of B (it will ignore the value and use the value from the prior bootstrap).
           If you don't run resample.bootstrap first then resample.doubleBootstrap will do it correctly.
     D=integer
       required
       Specifies the desired number of double-bootstrap resamples from each bootstrap resample.
+    Bpct=double
+      required (optional with default=1 in the future)
+      The percentage of the samples (intable) rowsize to use as the resamples size 1=100%
+    Dpct=double
+      required (optional with default=1 in the future)
+      The percentage of the bootstrap resamples (intable_bs) rowsize to use as the double-bootstrap resamples size 1=100%
+      Note: if Bpct is set to 50% (0.5) and Dpct is set to 100% (1) the the double-bootstrap resamples will still be 50% of the size of the original samples (intable) rowsize
+    seed=integer
+      required (optional with default=0 in the future)
+      Sets the seed for random sampling.  If missing, zero, or negative then SAS will compute a default seed.  
     Note: The number of double-bootstrap resamples is atleast B*D.  For Example: B=1000 and D=1000 yields at least B*D=1000000
 ```
+See the [documentation for Call Streaminit](https://go.documentation.sas.com/?cdcId=pgmsascdc&cdcVersion=9.4_3.3&docsetId=lefunctionsref&docsetTarget=p0gw58qo85qp56n1kbpiz50ww8lv.htm&locale=en) for further information on specifying a seed and changing the random-number generator (RNG).
 
 ### resample.jackknife action
 Creates a table of jackknife resamples from table `<intable>` and stores them in table `<intable>_jk`.  Runs the addRowID action on the `<intable>`.  There will be J resamples identified with jkID, where J is equal to the number of rows in `<intable>`.  The values of jkID are numbered 1, 2, ... n and each has rows identified by rowID.  When rowID from `<intable>` is equal to jkID the row is deleted/omitted.  
@@ -161,27 +184,27 @@ Parameter Descriptions
 ```
 ---
 # Further SAS References
-* [SAS Support Supplied macros for Bootstrap, Jacknife and some bias and confidence interval computations](http://support.sas.com/kb/24/982.html)
+* [SAS Support Supplied macros for Bootstrap, Jackknife and some bias and confidence interval computations](http://support.sas.com/kb/24/982.html)
 * [The DO Loop Blog: The essential guide to bootstrapping in SAS](https://blogs.sas.com/content/iml/2018/12/12/essential-guide-bootstrapping-sas.html)
 
 ---
 
-# Method Desriptions
+# Method Descriptions
 * Bootstrap
   * Take a sample dataset with rows 1, ..., n.  Create B resamples with replacement from the sample dataset.  Each resample with also have n rows.  Rows included in a resample, b, are called bagged.  Rows not selected for a particular resample, b, are called out-of-bag.
-  
+
   ![Bootstrap](./docs/images/bootstrap50p.gif)
-  
+
 * Double-bootstrap
   * First bootstrap as described above to create B resamples.  For each resample, b, do subsequent resamples called double-bootstraps.  Each of these double-bootstraps also have n rows where the rows are sampled with replacement from the corresponding bootstrap sample.
-  
+
   ![Double-Bootstrap](./docs/images/doubleBootstrap50p.gif)
-  
+
 * jackknife
   * This resampling technique takes resamples of size n-1 from the original sample of size n.  There will be J=n jackknife resamples where each has N-1 rows and the missing row is j=n.
 
   ![Jackknife](./docs/images/jackknife50p.gif)
-  
+
   ---
-  
+
   # Thank You!  I Appreciate All Feedback!

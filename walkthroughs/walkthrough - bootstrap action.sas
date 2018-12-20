@@ -16,6 +16,8 @@ quit;
 proc cas;
 	  intable='sample';
 		B=100; /* desired number of resamples, used to reset value of bss to achieve at least B resamples */
+		seed=12345; /* seed for call streaminit(seed) in the sampling */
+		Bpct=1; /* The percentage of the original samples rowsize to use as the resamples size 1=100% */
 run;
 
 		/* use the resample.addRowID action to add a naturally numbered rowID to the sample data */
@@ -32,6 +34,7 @@ run;
 
 		/* store the size of the original sample data in r.numRows */
 	  simple.numRows result=r / table=intable;
+				r.Bpctn=CEIL(r.numrows*Bpct); /* set r.Bpctn to the fraction of the original sample tables size requested for each bootstrap resample */
 run;
 
 		/* create a structure for the bootstrap sampling.
@@ -41,7 +44,7 @@ run;
                   call streaminit(12345);
                   do bs = 1 to '|| bss ||';
                     bsID = (_threadid_-1)*'|| bss ||' + bs;
-                    do bs_rowID = 1 to '|| r.numrows ||';
+                    do bs_rowID = 1 to '|| r.Bpctn ||';
                       rowID = int(1+'|| r.numrows ||'*rand(''Uniform''));
                       bag=1;
                       output;
