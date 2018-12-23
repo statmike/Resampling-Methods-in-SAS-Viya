@@ -26,26 +26,25 @@ proc cas;
          		   copyVars={"MSRP"}};
 run;
 
-
-  			/* spec out final selected model above with lower level effects included for inference */
-  			proc cas;
+/* spec out final selected model above with lower level effects included for inference */
+					fullmodel = {
+							 clb=TRUE,
+							 target = 'MSRP'
+							 effects = {
+										 {vars={'Weight','EngineSize','Origin','Horsepower','DriveTrain','Wheelbase','MPG_Highway'}},
+										 {vars={'EngineSize','Origin'}, interaction='CROSS'},
+										 {vars={'Horsepower','Origin'}, interaction='CROSS'},
+										 {vars={'Horsepower','DriveTrain'}, interaction='CROSS'},
+										 {vars={'EngineSize','Horsepower'}, interaction='CROSS'},
+										 {vars={'EngineSize','Wheelbase'}, interaction='CROSS'},
+										 {vars={'Horsepower','Horsepower'}, interaction='CROSS'},
+										 {vars={'Horsepower','MPG_Highway'}, interaction='CROSS'},
+										 {vars={'Horsepower','Wheelbase'}, interaction='CROSS'}
+									 }
+							 };
   			   glm / table  = {name='sample'},
   					 class = {'Origin','DriveTrain'},
-  					 model = {
-  								clb=TRUE,
-  					 			target = 'MSRP'
-  					 			effects = {
-  											{vars={'Weight','EngineSize','Origin','Horsepower','DriveTrain','Wheelbase','MPG_Highway'}},
-  											{vars={'EngineSize','Origin'}, interaction='CROSS'},
-  											{vars={'Horsepower','Origin'}, interaction='CROSS'},
-  											{vars={'Horsepower','DriveTrain'}, interaction='CROSS'},
-  											{vars={'EngineSize','Horsepower'}, interaction='CROSS'},
-  											{vars={'EngineSize','Wheelbase'}, interaction='CROSS'},
-  											{vars={'Horsepower','Horsepower'}, interaction='CROSS'},
-  											{vars={'Horsepower','MPG_Highway'}, interaction='CROSS'},
-  											{vars={'Horsepower','Wheelbase'}, interaction='CROSS'}
-  										}
-  					 			},
+  					 model = fullmodel,
   					 display = {names={'ParameterEstimates','Anova','FitStatistics'}},
   			         outputTables = {names={'ParameterEstimates'="sample_PE"}, replace=TRUE},
   			         output = {casOut={name='sample_pred', replace=TRUE},
@@ -54,30 +53,14 @@ run;
   			run;
 
 /* create bootstrap resamples */
-proc cas;
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
 	resample.bootstrap / intable='sample' B=100 seed=12345 Bpct=1;
 run;
 
 /* analyze/train each bootstrap resample with the same model effects selected on the full sample data */
-proc cas;
    glm result=myresult / table  = {name='sample_bs', groupBy='bsID'},
 		 class = {'Origin','DriveTrain'},
-		 model = {
-					clb=TRUE,
-		 			target = 'MSRP'
-		 			effects = {
-								{vars={'Weight','EngineSize','Origin','Horsepower','DriveTrain','Wheelbase','MPG_Highway'}},
-								{vars={'EngineSize','Origin'}, interaction='CROSS'},
-								{vars={'Horsepower','Origin'}, interaction='CROSS'},
-								{vars={'Horsepower','DriveTrain'}, interaction='CROSS'},
-								{vars={'EngineSize','Horsepower'}, interaction='CROSS'},
-								{vars={'EngineSize','Wheelbase'}, interaction='CROSS'},
-								{vars={'Horsepower','Horsepower'}, interaction='CROSS'},
-								{vars={'Horsepower','MPG_Highway'}, interaction='CROSS'},
-								{vars={'Horsepower','Wheelbase'}, interaction='CROSS'}
-							}
-		 			},
+		 model = fullmodel,
          partByVar = {name="bag",train="1",test="0"},
          outputTables = {names={'ParameterEstimates'="sample_BS_PE","FitStatistics"="sample_BS_FS"}, groupByVarsRaw=TRUE, replace=TRUE},
          output = {casOut={name='sample_bs_pred', replace=TRUE},
@@ -107,7 +90,7 @@ proc cas;
     transpose / table={name='sample_bs_Influence', groupBy={{name='bsID'}}},
           id={'rowID'},
           casOut={name='sample_bs_Influence', replace=true},
-          prefix='x',
+          prefix='rowID_',
           validVarName='any',
           transpose={'bagged'};
     alterTable / name="sample_bs_Influence" columns={{name="_name_", drop=TRUE}};
@@ -141,14 +124,14 @@ run;
 
 ods graphics on;
 proc treesplit data=mylib.sample_bs_Influence outmodel=mylib.sample_bs_Influence_Model_aMAE maxdepth=15 plots=zoomedtree(depth=3);
-model aMAE_1m0 = x:;
+model aMAE_1m0 = rowID_:;
 prune none;
 run;
 ods graphics off;
 
 ods graphics on;
 proc treesplit data=mylib.sample_bs_Influence outmodel=mylib.sample_bs_Influence_Model_MAE maxdepth=15 plots=zoomedtree(depth=3);
-model MAE_1m0 = x:;
+model MAE_1m0 = rowID_:;
 prune none;
 run;
 ods graphics off;
