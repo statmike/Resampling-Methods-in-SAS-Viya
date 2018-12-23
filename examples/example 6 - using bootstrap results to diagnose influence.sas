@@ -112,28 +112,6 @@ proc cas;
           transpose={'bagged'};
     alterTable / name="sample_bs_Influence" columns={{name="_name_", drop=TRUE}};
 run;
-proc cas;
-    /* Need to quote Value because it is a fedsql reserved word */
-    fedsql.execDirect / query="create table sample_bs_Influence {options replace=True} as
-                    select * from
-                      (select * from sample_bs_Influence) a
-                      join
-                      (select bsID, "||quote('Value')||" as RMSE from sample_bs_fs where rowID='RMSE') b
-                      using (bsID)";
-run;
-
-/* use a decision tree to model RMSE with the counts of column occurence in the modeled resamples */
-ods graphics on;
-  proc treesplit data=mylib.sample_bs_Influence outmodel=mylib.sample_bs_Influence_Model_RMSE maxdepth=15 plots=zoomedtree(depth=3);
-    model RMSE = x:;
-    prune none;
-  run;
-ods graphics off;
-
-
-
-
-
 
 
 /* Use model of Difference in MAP from each bootstrap resample to detect influential rows of data */

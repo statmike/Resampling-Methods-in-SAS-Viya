@@ -130,3 +130,9 @@ ods graphics on;
 ods graphics off;
 
 *cas mysess clear;
+/* to do
+model statement as variable
+convert treesplit to action
+comment code
+make project plan for action that digs into tree results looking for interesting rows and clusters
+*/
