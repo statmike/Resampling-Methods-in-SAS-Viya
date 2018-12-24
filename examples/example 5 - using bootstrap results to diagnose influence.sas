@@ -109,7 +109,7 @@ ods graphics off;
 
 proc cas;
 		loadActionSet / actionSet='decisionTree';
-		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'}, target='RMSE', inputs={{name='/rowID_/'},}, nBins=20, maxLevel=16, maxBranch=2, leafSize=5, crit='VARIANCE',
+		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'}, target='RMSE', inputs={{name='/^rowID_/'},}, nBins=20, maxLevel=16, maxBranch=2, leafSize=5, crit='VARIANCE',
       missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, casOut={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE',
       replace=true}, mergeBin=true, encodeName=true;
 run;
