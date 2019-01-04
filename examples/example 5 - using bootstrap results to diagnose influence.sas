@@ -109,10 +109,16 @@ ods graphics off;
 
 proc cas;
 		loadActionSet / actionSet='decisionTree';
-		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'}, target='RMSE', inputs={{name='/^rowID_/'},}, nBins=20, maxLevel=16, maxBranch=2, leafSize=5, crit='VARIANCE',
-      missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, casOut={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE',
-      replace=true}, mergeBin=true, encodeName=true;
+		/* it does not appear that regular expressions are accepted for the dtreeTrain action - see work around in next step*/
+		*decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'}, target='RMSE', inputs='/^rowID_/', nBins=20, maxLevel=16, maxBranch=2, leafSize=5, crit='VARIANCE',
+			missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, casOut={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE', replace=true}, mergeBin=true, encodeName=true;
+		/* make variable with list of ^rowID columns from sample_bs_influence, pass this variable to the action for effects=variable */
 run;
+
+
+
+
+
 		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'}, target='RMSE', inputs={{name='rowID_1'},
       {name='rowID_2'}, {name='rowID_3'}, {name='rowID_4'}, {name='rowID_5'}, {name='rowID_6'}, {name='rowID_7'}, {name='rowID_8'},
       {name='rowID_9'}, {name='rowID_10'}, {name='rowID_11'}, {name='rowID_12'}, {name='rowID_13'}, {name='rowID_14'},
