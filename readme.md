@@ -12,7 +12,14 @@ All code is written in SAS CASL which can be executed from a SAS interface with 
 ### Contribute
 Have something to add?  Just fork it, change it, and create a pull request!
 
+Review the section [RepositoryLayout](#Respository-Layout) to understand dependencies in the repository structure.
+
 Have comments, questions, suggestions? Just use the issues feature
+
+### Repository layout
+As updates are made to the repository there are dependencies between files and folders.  The primary file is `resample - defineActionSet.sas` and any updates to it will require updates in `/walkthroughs` and `Readme.md`.  Some folders and files are standalone like `/tools` and `/applications` but additions still need to be added to `Readme.md`.  
+
+![Repository Layout](./docs/images/RepositoryLayout50p.png)
 
 ### Contents of the repository
 * [resample - defineActionSet.sas](./resample%20-%20defineActionSet.sas) The resample actionset definition file.
@@ -207,4 +214,5 @@ Parameter Descriptions
 
   ---
 
-  # Thank You!  I Appreciate All Feedback!
+  # Thank You!  
+  # I Appreciate All Feedback!
