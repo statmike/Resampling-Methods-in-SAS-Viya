@@ -6,8 +6,9 @@ proc casutil;
 	load data=sashelp.cars casout="sample" replace;
 quit;
 
+/* using regular expression with regression actionSet */
 proc cas;
-   loadactionset / actionset='regression';
+   loadactionset / actionSet='regression';
    glm / table  = {name='sample'},
 		 model = {
 					clb=TRUE,
@@ -19,6 +20,7 @@ proc cas;
 		 display = {names={'ParameterEstimates','Anova','FitStatistics'}};
 run;
 
+/* using regular expression with decisionTree actionSet */
 proc cas;
 	loadActionSet / actionSet='decisionTree';
 	dtreeTrain / table={name='sample'},
@@ -28,6 +30,7 @@ proc cas;
       			 missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, mergeBin=true, encodeName=true;
 run;
 
+/* not using regular expression with decisionTree actionSet */
 proc cas;
 	loadActionSet / actionSet='decisionTree';
 	dtreeTrain / table={name='sample'},
@@ -37,6 +40,7 @@ proc cas;
       			 missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, mergeBin=true, encodeName=true;
 run;
 
+/* using Proc treesplit with wildcard */
 proc treesplit data=mylib.sample maxdepth=15;
   model MSRP = MPG:;
   prune none;
