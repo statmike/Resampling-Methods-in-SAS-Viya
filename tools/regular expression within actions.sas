@@ -46,4 +46,21 @@ proc treesplit data=mylib.sample maxdepth=15;
   prune none;
 run;
 
+
+/* work around */
+proc cas;
+	table.columninfo result=c / table={name='sample'};
+	*describe(c);
+	*print(c.columninfo.where(substr(column,1,3)='MPG'));
+	c2=c.columninfo.where(substr(column,1,3)='MPG')[,"column"];
+	*print(c2);
+	loadActionSet / actionSet='decisionTree';
+	dtreeTrain / table={name='sample'},
+				 target='MSRP',
+				 inputs=c2,
+				 nBins=20, maxLevel=16, maxBranch=2, leafSize=5, crit='VARIANCE',
+      			 missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, mergeBin=true, encodeName=true;
+run;
+
+
 *cas mysess clear;
