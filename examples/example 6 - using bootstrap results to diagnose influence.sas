@@ -124,15 +124,14 @@ run;
 
 proc cas;
 		table.columninfo result=c / table={name='sample_bs_Influence'};
-				c2=c.columninfo.where(substr(column,1,6)=='rowID_')[,"column"];
 		loadActionSet / actionSet='decisionTree';
 		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'},
-			target='aMAE_1m0', inputs=c2,
+			target='aMAE_1m0', inputs=c.columninfo.where(substr(column,1,4)=='rowI')[,"column"];,
 			nBins=20, maxLevel=16, maxBranch=2, leafSize=5, crit='VARIANCE',
     	missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, casOut={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE', replace=true},
 			mergeBin=true, encodeName=true;
 		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'},
-			target='MAE_1m0', inputs=c2,
+			target='MAE_1m0', inputs=c.columninfo.where(substr(column,1,4)=='rowI')[,"column"];,
 			nBins=20, maxLevel=16, maxBranch=2, leafSize=5, crit='VARIANCE',
     	missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, casOut={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE', replace=true},
 			mergeBin=true, encodeName=true;

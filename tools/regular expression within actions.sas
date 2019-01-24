@@ -62,5 +62,14 @@ proc cas;
       			 missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, mergeBin=true, encodeName=true;
 run;
 
+/* weird substr behavior */
+proc cas;
+	table.columninfo result=c / table={name='sample'};
+	print(c.columninfo.where(substr(column,1,3)=='MPG')[,"column"]);
+	print(c.columninfo.where(substr(column,1,4)=='MPG_')[,"column"]);
+	print(c.columninfo.where(substr(column,1,5)=='MPG_C')[,"column"]);
+run;
+
+
 
 *cas mysess clear;

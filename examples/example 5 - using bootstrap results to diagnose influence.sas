@@ -111,7 +111,7 @@ ods graphics off;
 
 proc cas;
 		table.columninfo result=c / table={name='sample_bs_Influence'};
-				c2=c.columninfo.where(substr(column,1,6)=='rowID_')[,"column"];
+				c2=c.columninfo.where(substr(column,1,4)=='rowI')[,"column"];
 		loadActionSet / actionSet='decisionTree';
 		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'},
 			target='RMSE', inputs=c2,
