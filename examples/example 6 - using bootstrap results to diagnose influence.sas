@@ -122,19 +122,26 @@ fedsql.execDirect / query="create table sample_bs_Influence {options replace=Tru
   dropTable name='temp_FITSTAT';
 run;
 
-ods graphics on;
-proc treesplit data=mylib.sample_bs_Influence outmodel=mylib.sample_bs_Influence_Model_aMAE maxdepth=15 plots=zoomedtree(depth=3);
-model aMAE_1m0 = rowID_:;
-prune none;
+proc cas;
+		table.columninfo result=c / table={name='sample_bs_Influence'};
+				c2=c.columninfo.where(substr(column,1,6)=='rowID_')[,"column"];
+		loadActionSet / actionSet='decisionTree';
+		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'},
+			target='aMAE_1m0', inputs=c2,
+			nBins=20, maxLevel=16, maxBranch=2, leafSize=5, crit='VARIANCE',
+    	missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, casOut={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE', replace=true},
+			mergeBin=true, encodeName=true;
+		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'},
+			target='MAE_1m0', inputs=c2,
+			nBins=20, maxLevel=16, maxBranch=2, leafSize=5, crit='VARIANCE',
+    	missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, casOut={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE', replace=true},
+			mergeBin=true, encodeName=true;
 run;
-ods graphics off;
 
-ods graphics on;
-proc treesplit data=mylib.sample_bs_Influence outmodel=mylib.sample_bs_Influence_Model_MAE maxdepth=15 plots=zoomedtree(depth=3);
-model MAE_1m0 = rowID_:;
-prune none;
-run;
-ods graphics off;
+
+
+
+
 
 
 *cas mysess clear;

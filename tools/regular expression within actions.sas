@@ -52,7 +52,7 @@ proc cas;
 	table.columninfo result=c / table={name='sample'};
 	*describe(c);
 	*print(c.columninfo.where(substr(column,1,3)='MPG'));
-	c2=c.columninfo.where(substr(column,1,3)='MPG')[,"column"];
+	c2=c.columninfo.where(substr(column,1,3)=='MPG')[,"column"];
 	*print(c2);
 	loadActionSet / actionSet='decisionTree';
 	dtreeTrain / table={name='sample'},
