@@ -14,10 +14,10 @@ Have something to add?  Just fork it, change it, and create a pull request!
 
 Review the section [RepositoryLayout](#Respository-Layout) to understand dependencies in the repository structure.
 
-Have comments, questions, suggestions? Just use the issues feature
+Have comments, questions, suggestions? Just use the issues feature in github
 
 ### Repository layout
-As updates are made to the repository there are dependencies between files and folders.  The primary file is `resample - defineActionSet.sas` and any updates to it will require updates in `/walkthroughs` and `Readme.md`.  Some folders and files are standalone like `/tools` and `/applications` but additions still need to be added to `Readme.md`.  
+As updates are made to the repository there are dependencies between files and folders.  The primary file is `resample - defineActionSet.sas` and any updates to it will require updates in `/walkthroughs` and `Readme.md`.  Some folders and files are standalone like `/tools` and `/applications` but additions still need to be added to `Readme.md`.  Also, `/examples` may need to be updated if the actions calls are updated with parameter changes.
 
 ![Repository Layout](./docs/images/RepositoryLayout50p.png)
 
@@ -28,6 +28,8 @@ As updates are made to the repository there are dependencies between files and f
   * [example 2 - regression bootstrap parameter estimates.sas](./examples/example%202%20-%20regression%20bootstrap%20parameter%20estimates.sas)
   * [example 3 - regression double-bootstrap parameter estimates.sas](./examples/example%203%20-%20regression%20double%20bootstrap%20parameter%20estimates.sas)
   * [example 4 - regression jackknife parameter estimates.sas](./examples/example%203%20-%20regression%20jackknife%20parameter%20estimates.sas)
+  * [example 5 - using bootstrap results to diagnose influence with model fit.sas](./examples/example%205%20-%20using%20bootstrap%20results%20to%20diagnose%20influence%20with%20model%20fit.sas)
+  * [example 6 - using bootstrap results to diagnose influence with model accuracy.sas](./examples/example%206%20-%20using%20bootstrap%20results%20to%20diagnose%20influence%20with%20model%20accuracy.sas)
 * Folder: [walkthroughs](./walkthroughs) contains step-by-step commented versions of the code within the actions to help understand how they work.  This is great for learning!
   * [walkthrough - addRowID action.sas](./walkthroughs/walkthrough%20-%20addRowID%20action.sas)
   * [walkthrough - bootstrap action.sas](./walkthroughs/walkthrough%20-%20bootstrap%20action.sas)
@@ -91,17 +93,18 @@ Parameter Descriptions
 ```
 
 ### resample.bootstrap action
-Creates a table of identically sized bootstrap resamples from table `<intable>` and stores them in a table named `<intable>_bs`.  Runs the addRowID action on the `<intable>`.  Columns that describe the link between the bootstrap resamples and the original sample are:
+Creates a table of bootstrap resamples from table `<intable>` and stores them in a table named `<intable>_bs`.  Runs the addRowID action on the `<intable>` cases.  Columns that describe the link between the bootstrap resamples and the original sample are:
 * bsID - is the naturally numbered (1, 2, ..., b) identifier of a resample
-* bs_rowID - is the naturally numbered (1, 2, ..., n) row identifier within the value of bsID
-* rowID - is the naturally numbered (1, 2, ..., n) row identifier for the sampled row in `<intable>`
-* bag - is 1 for resampled rows, 0 for rowID values not resampled within the bsID (will have missing for bs_rowID)
+* bs_caseID - is the naturally numbered (1, 2, ..., n) case identifier within the value of bsID
+* caseID - is the naturally numbered (1, 2, ..., n) case identifier for the resampled case in `<intable>`
+* bag - is 1 for resampled case, 0 for caseID values not resampled within the bsID (will have missing for bs_caseID)
 
 ```
 CASL Syntax
 
     resample.bootstrap /
       intable="string"
+      case="string"
       B=integer
       Bpct=double
       seed=integer
@@ -111,13 +114,16 @@ Parameter Descriptions
     intable="string"  
       required  
       specifies the name of the table to resample from in CAS
+    case="string"
+      required
+      Specifies the name of the column from `<intable>` that connects groupings of rows that make up cases.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling.
     B=integer
       required
       Specifies the desired number of bootstrap resamples.  
       Note: Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
     Bpct=double
       required (optional with default=1 in the future)
-      The percentage of the samples (intable) rowsize to use as the resamples size 1=100%
+      The percentage of the number of sample cases (intable) to use as the resample size 1=100%
     seed=integer
       required (optional with default=0 in the future)
       Sets the seed for random sampling.  If missing, zero, or negative then SAS will compute a default seed.  
@@ -125,13 +131,13 @@ Parameter Descriptions
 See the [documentation for Call Streaminit](https://go.documentation.sas.com/?cdcId=pgmsascdc&cdcVersion=9.4_3.3&docsetId=lefunctionsref&docsetTarget=p0gw58qo85qp56n1kbpiz50ww8lv.htm&locale=en) for further information on specifying a seed and changing the random-number generator (RNG).
 
 ### resample.doubleBootstrap action
-Creates a table of identically sized bootstrap and double-bootstrap resamples from table `<intable>` and stores them in tables `<intable>_bs` and `<intable>_dbs`.  Runs the addRowID action on the `<intable>`.  If the bootstrap action has already been run on table `<intable>` then a table `<intable>_bs` already exist and will be used for double-bootstraping.  Columns that describe the link between the double-bootstrap resamples and the bootstrap resamples are:
+Creates a table of bootstrap and double-bootstrap resamples from table `<intable>` and stores them in tables `<intable>_bs` and `<intable>_dbs`.  Runs the addRowID action on the `<intable>` cases.  If the bootstrap action has already been run on table `<intable>` then a table `<intable>_bs` already exist and will be used for double-bootstraping.  Columns that describe the link between the double-bootstrap resamples and the bootstrap resamples are:
 * bsID - is the naturally numbered (1, 2, ..., b) identifier of a resample
 * dbsID - is the naturally numbered (1, 2, ..., d) identifier of a resample from a bsID
-* dbs_rowID - is the naturally numbered (1, 2, ..., n) row identifier within the value of dbsID
-* bs_rowID - is the naturally numbered (1, 2, ..., n) row identifier for the resampled row in bsID
-* rowID - is the naturally numbered (1, 2, ..., n) row identifier for the resampled row in `<intable>`
-* bag - is 1 for resampled rows, 0 for rowID values not resampled within the bsID (will have missing for bs_rowID)
+* dbs_caseID - is the naturally numbered (1, 2, ..., n) case identifier within the value of dbsID
+* bs_caseID - is the naturally numbered (1, 2, ..., n) case identifier for the resampled case in bsID
+* caseID - is the naturally numbered (1, 2, ..., n) case identifier for the resampled case in `<intable>`
+* bag - is 1 for resampled cases, 0 for caseID values not resampled within the bsID (will have missing for bs_caseID)
   * 0 could be a non-resampled row in either the bsID or the dbsID (resampled from bsID)
 
 ```
@@ -139,6 +145,7 @@ CASL Syntax
 
     resample.doubleBootstrap /
       intable="string"
+      case="string"
       B=integer
       D=integer
       seed=integer
@@ -150,21 +157,24 @@ Parameter Descriptions
     intable="string"  
       required  
       specifies the name of the table to resample from in CAS
+    case="string"
+      required
+      Specifies the name of the column from `<intable>` that connects groupings of rows that make up cases.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling.
     B=integer
       required
       Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
       Note: If you run resample.bootstrap first then you should use the same value of B (it will ignore the value and use the value from the prior bootstrap).
-          If you don't run resample.bootstrap first then resample.doubleBootstrap will do it correctly.
+          If you don't run resample.bootstrap first then resample.doubleBootstrap will run it first.
     D=integer
       required
       Specifies the desired number of double-bootstrap resamples from each bootstrap resample.
     Bpct=double
       required (optional with default=1 in the future)
-      The percentage of the samples (intable) rowsize to use as the resamples size 1=100%
+      The percentage of the number of sample cases (intable) to use as the resample size 1=100%
     Dpct=double
       required (optional with default=1 in the future)
-      The percentage of the bootstrap resamples (intable_bs) rowsize to use as the double-bootstrap resamples size 1=100%
-      Note: if Bpct is set to 50% (0.5) and Dpct is set to 100% (1) the the double-bootstrap resamples will still be 50% of the size of the original samples (intable) rowsize
+      The percentage of the number of bootstrap resample cases (intable_bs) to use as the double-bootstrap resample size 1=100%
+      Note: if Bpct is set to 50% (0.5) and Dpct is set to 100% (1) the the double-bootstrap resamples will still be 50% of the size of the original samples (intable) number of cases
     seed=integer
       required (optional with default=0 in the future)
       Sets the seed for random sampling.  If missing, zero, or negative then SAS will compute a default seed.  
@@ -173,21 +183,25 @@ Parameter Descriptions
 See the [documentation for Call Streaminit](https://go.documentation.sas.com/?cdcId=pgmsascdc&cdcVersion=9.4_3.3&docsetId=lefunctionsref&docsetTarget=p0gw58qo85qp56n1kbpiz50ww8lv.htm&locale=en) for further information on specifying a seed and changing the random-number generator (RNG).
 
 ### resample.jackknife action
-Creates a table of jackknife resamples from table `<intable>` and stores them in table `<intable>_jk`.  Runs the addRowID action on the `<intable>`.  There will be J resamples identified with jkID, where J is equal to the number of rows in `<intable>`.  The values of jkID are numbered 1, 2, ... n and each has rows identified by rowID.  When rowID from `<intable>` is equal to jkID the row is deleted/omitted.  
+Creates a table of jackknife resamples from table `<intable>` and stores them in table `<intable>_jk`.  Runs the addRowID action on the `<intable>` cases.  There will be J resamples identified with jkID, where J is equal to the number of cases in `<intable>`.  The values of jkID are numbered 1, 2, ... n and each has resampled cases identified by caseID.  When caseID from `<intable>` is equal to jkID the case is deleted/omitted.  
 * jkID - is the naturally numbered (1, 2, ..., n) identifier of a resample
-* rowID - is the naturally numbered (1, 2, ..., n) row identifier for the resample row in `<intable>`
+* caseID - is the naturally numbered (1, 2, ..., n) case identifier for the resampled case in `<intable>`
 
 ```
 CASL Syntax
 
     resample.jackknife /
       intable="string"
+      case="string"
 
 Parameter Descriptions
 
     intable="string"
       required
       specifies the name of the table to resample from in CAS
+    case="string"
+      required
+      Specifies the name of the column from `<intable>` that connects groupings of rows that make up cases.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling.
 ```
 ---
 # Further SAS References

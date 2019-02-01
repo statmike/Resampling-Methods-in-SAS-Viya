@@ -74,7 +74,7 @@ run;
 
 
 
-/* Use model RMSE from each bootstrap resample to detect influential rows of data */
+/* Use model accuracy from each bootstrap resample to detect influential rows of data */
 
 /* create a table of counts for input sample rows occuring in the bootstrap resamples
     rows are bootstrap resamples and columns are those found in the input sample table.  */
