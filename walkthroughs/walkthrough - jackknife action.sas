@@ -1,3 +1,47 @@
+table.columninfo result=i / table=intable;
+		if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
+				if i.columninfo.where(upcase(Column)='CASEID').nrows=1 then do;
+					alterTable / name=intable columns={{name='caseID', drop=TRUE}};
+				end;
+				fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||' from '|| intable;
+				resample.addRowID / intable=intable||'_cases';
+					alterTable / name=intable||'_cases' columns={{name='rowID',rename='caseID'}};
+				simple.numRows result=r / table=intable||'_cases';
+				fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
+																			select * From
+																				(select * from '|| intable ||'_cases) a
+																				left outer join
+																				(select * from '|| intable ||') b
+																				using('|| CASE ||')';
+				dropTable name=intable||'_cases';
+		end;
+		else do;
+				if i.columninfo.where(upcase(Column)='CASEID').nrows=1 then do;
+					alterTable / name=intable columns={{name='caseID', drop=TRUE}};
+				end;
+				resample.addRowID / intable=intable;
+					alterTable / name=intable columns={{name='rowID',rename='caseID'}};
+				simple.numRows result=r / table=intable;
+		end;
+r.numCases=r.numrows;
+datastep.runcode result=t / code='data '|| intable ||'_jkkey;
+							do jkID = 1 to '|| r.numCases ||';
+								do caseID = 1 to '|| r.numCases ||';
+									bag=1;
+									if jkID ne caseID then output;
+								end;
+							end;
+						run;' single='YES';
+fedSql.execDirect / query='create table '|| intable ||'_jk {options replace=TRUE} as
+								select * From
+									(select jkID, caseID, bag from '|| intable ||'_jkkey) a
+									join
+									(select * from '|| intable ||') b
+									using(caseID)';
+dropTable name=intable||'_jkkey';
+partition / casout={name=intable||'_jk', replace=TRUE} table={name=intable||'_jk', groupby={{name='jkID'}}};
+
+
 /* a step by step walkthrough of the jackknife action in the resample actionset
   link to wiki:
 */
