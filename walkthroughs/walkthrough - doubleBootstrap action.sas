@@ -17,17 +17,22 @@ quit;
 		if multiple rows per cases then need a column, unique_case, to hold identifier: cases=YES and multipleRows=YES
 */
 proc casutil;
-	cases='NO';
-	multipleRows='NO';
-	load data=sashelp.cars casout="sample" replace; /* n=428 */
-	if cases='YES' then do;
-		resample.addRowID / intable='sample';
-		datastep.runcode / code='data sample; set sample; unique_case=10000+rowID; drop rowID; run;'; /* n=428 */
-		if multipleRows='YES' then do;
-			datastep.runcode / code='data sample; set sample; do rep = 1 to 3; output; end; run;'; /* n=1284 */
+		load data=sashelp.cars casout="sample" replace; /* n=428 */
+run;
+proc cas;
+		cases='NO';
+		multipleRows='NO';
+		if cases='YES' then do;
+			resample.addRowID / intable='sample';
+			datastep.runcode / code='data sample; set sample; unique_case=10000+rowID; drop rowID; run;'; /* n=428 */
+			if multipleRows='YES' then do;
+				datastep.runcode / code='data sample; set sample; do rep = 1 to 3; output; end; run;'; /* n=1284 */
+			end;
 		end;
-	end;
-quit;
+		simple.numRows result=r / table='sample';
+			print(r.numRows);
+		table.fetch / table='sample' index=false to=12;
+run;
 
 /* define parameters to hold the action inputs */
 proc cas;
@@ -37,32 +42,33 @@ proc cas;
 		seed=12345; /* seed for call streaminit(seed) in the sampling */
 		Bpct=1; /* The percentage of the original samples rowsize to use as the resamples size 1=100% */
 		Dpct=1; /* The percentage of the original samples rowsize to use as the resamples (DoubleBootstrap) size 1=100% */
-		case='rows'; /* if the value is a column in intable then uses unique values of that column as cases, otherwise will use rows of intable as cases */
+		case='unique_case'; /* if the value is a column in intable then uses unique values of that column as cases, otherwise will use rows of intable as cases */
 run;
 
 		/* check to see if resample.bootstrap has already been run
-					if not then run it first to get bootstrap resamples for double-bootstrap resampling
-			calculate bss from the results of resample.bootstrap */
+					if not then run it first to get bootstrap resamples for double-bootstrap resampling */
 		table.tableExists result=c / name=intable||'_bs';
-				/* if intable_bs exists then use it */
-				if c.exists then do;
-						/* calculate bss */
-						datastep.runcode result=t / code='data tempholdbss; set '|| intable || '_bs; threadid=_threadid_; nthreads=_nthreads_; run;';
-								fedsql.execDirect result=q / query='select max(bscount) as bss from (select count(*) as bscount from (select distinct bsID, threadid from tempholdbss) a group by threadid) b';
-								dropTable name='tempholdbss';
-								bss=q[1,1].bss;
-				end;
 				/* if intable_bs does not exists then run the resample.bootstrap action to create it */
-				else do;
+				if c.exists==0 then do;
 					bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct Case=Case;
-					*describe(r);
-					*print r.bss;
-							/* calculate bss, can this be retrieved as response from the bootsrap action (not working) */
-							datastep.runcode result=t / code='data tempholdbss; set '|| intable || '_bs; threadid=_threadid_; nthreads=_nthreads_; run;';
-									fedsql.execDirect result=q / query='select max(bscount) as bss from (select count(*) as bscount from (select distinct bsID, threadid from tempholdbss) a group by threadid) b';
-									dropTable name='tempholdbss';
-									bss=q[1,1].bss;
 				end;
+run;
+
+		/* calculate bss, can this be retrieved as response from the bootsrap action (not working) */
+		datastep.runcode result=t / code='data tempholdbss; set '|| intable || '_bs; threadid=_threadid_; nthreads=_nthreads_; run;';
+				*fedsql.execDirect result=q / query='select max(bscount) as bss from (select count(*) as bscount from (select distinct bsID, threadid from tempholdbss) a group by threadid) b';
+				fedsql.execDirect result=q1 / query='select count(*) as cbsid from (select distinct bsID from tempholdbss) a';
+				fedsql.execDirect result=q2 / query='select max(nthreads) as nthreads from tempholdbss';
+				dropTable name='tempholdbss';
+				bss=q1[1,1].cbsid/q2[1,1].nthreads;
+				print bss;
+run;
+
+		/*  take a look at how the table is distributed in the CAS environment */
+		datastep.runcode result=t / code='data '||intable||'_bs; set '||intable||'_bs; host=_hostname_; threadid=_threadid_; run;';
+		simple.crossTab / table={name=intable||"_bs" where="bag=1"} row="bsid" col="host" aggregator="N";
+		simple.crossTab / table={name=intable||"_bs" where="bag=1"} row="bsid" col="threadid" aggregator="N";
+		alterTable / name=intable||"_bs" columns={{name='host', drop=TRUE},{name='threadid', drop=TRUE}};
 run;
 
 		/* workflow: if case is a column in intable then do first route, otherwise do second route (else) */
@@ -159,7 +165,7 @@ run;
 run;
 
 		/* rebalance the table by partitioning by bsID and dbsID, this will ensure all the same values of bsID are on the same host but not necessarily the same _threadid_ */
-		partition / casout={name=intable||'_dbs', replace=TRUE} table={name=intable||'_dbs', groupby={{name='bsID'},{name='dbsID'}}};
+		partition / casout={name=intable||'_dbs', replace=TRUE} table={name=intable||'_dbs', groupby={{name='bsID'}}};
 run;
 
 		/*  take a look at how the table is distributed in the CAS environment */

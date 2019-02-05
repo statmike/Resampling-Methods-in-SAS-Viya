@@ -118,23 +118,15 @@ proc cas;
 				}
 				definition = "
 							table.tableExists result=c / name=intable||'_bs';
-									if c.exists then do;
-											/* calculate bss */
-											datastep.runcode result=t / code='data tempholdbss; set '|| intable || '_bs; threadid=_threadid_; nthreads=_nthreads_; run;';
-													fedsql.execDirect result=q / query='select max(bscount) as bss from (select count(*) as bscount from (select distinct bsID, threadid from tempholdbss) a group by threadid) b';
-													dropTable name='tempholdbss';
-													bss=q[1,1].bss;
-									end;
-									else do;
-										bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct Case=Case;
-										*describe(r);
-										*print r.bss;
-												/* calculate bss, can this be retrieved as response from the bootsrap action (not working) */
-												datastep.runcode result=t / code='data tempholdbss; set '|| intable || '_bs; threadid=_threadid_; nthreads=_nthreads_; run;';
-														fedsql.execDirect result=q / query='select max(bscount) as bss from (select count(*) as bscount from (select distinct bsID, threadid from tempholdbss) a group by threadid) b';
-														dropTable name='tempholdbss';
-														bss=q[1,1].bss;
-									end;
+								if c.exists==0 then do;
+									bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct Case=Case;
+								end;
+							datastep.runcode result=t / code='data tempholdbss; set '|| intable || '_bs; threadid=_threadid_; nthreads=_nthreads_; run;';
+									fedsql.execDirect result=q1 / query='select count(*) as cbsid from (select distinct bsID from tempholdbss) a';
+									fedsql.execDirect result=q2 / query='select max(nthreads) as nthreads from tempholdbss';
+									dropTable name='tempholdbss';
+									bss=q1[1,1].cbsid/q2[1,1].nthreads;
+									*print bss;							
 							table.columninfo result=i / table=intable;
 									if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
 											fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct caseID from '|| intable;
@@ -179,7 +171,7 @@ proc cas;
 																'|| intable ||'
 																using (caseID)';
 							dropTable name=intable||'_dbskey';
-							partition / casout={name=intable||'_dbs', replace=TRUE} table={name=intable||'_dbs', groupby={{name='bsID'},{name='dbsID'}}};
+							partition / casout={name=intable||'_dbs', replace=TRUE} table={name=intable||'_dbs', groupby={{name='bsID'}}};
 				"
 			}
 			{

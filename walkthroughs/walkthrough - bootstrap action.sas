@@ -17,17 +17,22 @@ quit;
 		if multiple rows per cases then need a column, unique_case, to hold identifier: cases=YES and multipleRows=YES
 */
 proc casutil;
-	cases='NO';
-	multipleRows='NO';
-	load data=sashelp.cars casout="sample" replace; /* n=428 */
-	if cases='YES' then do;
-		resample.addRowID / intable='sample';
-		datastep.runcode / code='data sample; set sample; unique_case=10000+rowID; drop rowID; run;'; /* n=428 */
-		if multipleRows='YES' then do;
-			datastep.runcode / code='data sample; set sample; do rep = 1 to 3; output; end; run;'; /* n=1284 */
+		load data=sashelp.cars casout="sample" replace; /* n=428 */
+run;
+proc cas;
+		cases='NO';
+		multipleRows='NO';
+		if cases='YES' then do;
+			resample.addRowID / intable='sample';
+			datastep.runcode / code='data sample; set sample; unique_case=10000+rowID; drop rowID; run;'; /* n=428 */
+			if multipleRows='YES' then do;
+				datastep.runcode / code='data sample; set sample; do rep = 1 to 3; output; end; run;'; /* n=1284 */
+			end;
 		end;
-	end;
-quit;
+		simple.numRows result=r / table='sample';
+			print(r.numRows);
+		table.fetch / table='sample' index=false to=12;
+run;
 
 /* define parameters to hold the action inputs */
 proc cas;
@@ -35,7 +40,7 @@ proc cas;
 		B=100; /* desired number of resamples, used to reset value of bss to achieve at least B resamples */
 		seed=12345; /* seed for call streaminit(seed) in the sampling */
 		Bpct=1; /* The percentage of the original samples rowsize to use as the resamples size 1=100% */
-		case='rows'; /* if the value is a column in intable then uses unique values of that column as cases, otherwise will use rows of intable as cases */
+		case='unique_case'; /* if the value is a column in intable then uses unique values of that column as cases, otherwise will use rows of intable as cases */
 run;
 
 		/* workflow: if case is a column in intable then do first route, otherwise do second route (else) */
