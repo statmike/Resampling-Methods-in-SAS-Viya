@@ -54,7 +54,7 @@ run;
 
 /* create bootstrap resamples */
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
-	resample.bootstrap / intable='sample' B=100 seed=12345 Bpct=1;
+	resample.bootstrap / intable='sample' B=100 seed=12345 Bpct=1 case='unique_case';
 run;
 
 /* analyze/train each bootstrap resample with the same model effects selected on the full sample data */
@@ -65,7 +65,7 @@ run;
          outputTables = {names={'ParameterEstimates'="sample_BS_PE","FitStatistics"="sample_BS_FS"}, groupByVarsRaw=TRUE, replace=TRUE},
          output = {casOut={name='sample_bs_pred', replace=TRUE},
          		   pred='Pred', resid='Resid', cooksd='CooksD', h='H',
-         		   copyVars={"bsID","bs_rowID","rowID","MSRP","bag"}};
+         		   copyVars={"bsID","bs_caseID","caseID","MSRP","bag"}};
 run;
 
 /* Use model RMSE from each bootstrap resample to detect influential rows of data */
@@ -74,17 +74,17 @@ run;
     rows are bootstrap resamples and columns are those found in the input sample table.  */
 proc cas;
     fedsql.execDirect / query="create table sample_bs_Influence {options replace=true} as
-                    select bsID, rowID, count(*) as bagged
+                    select bsID, caseID, count(*) as bagged
                       from sample_bs
                       where bag=1
-                      group by bsID, rowID";
+                      group by bsID, caseID";
 run;
 proc cas;
     loadActionSet / actionSet='transpose';
     transpose / table={name='sample_bs_Influence', groupBy={{name='bsID'}}},
-          id={'rowID'},
+          id={'caseID'},
           casOut={name='sample_bs_Influence', replace=true},
-          prefix='rowID_',
+          prefix='caseID_',
           validVarName='any',
           transpose={'bagged'};
     alterTable / name="sample_bs_Influence" columns={{name="_name_", drop=TRUE}};
@@ -103,7 +103,7 @@ run;
 /*
 ods graphics on;
   proc treesplit data=mylib.sample_bs_Influence outmodel=mylib.sample_bs_Influence_Model_RMSE maxdepth=15 plots=zoomedtree(depth=3);
-    model RMSE = rowID_:;
+    model RMSE = caseID_:;
     prune none;
   run;
 ods graphics off;
@@ -111,7 +111,7 @@ ods graphics off;
 
 proc cas;
 		table.columninfo result=c / table={name='sample_bs_Influence'};
-				c2=c.columninfo.where(substr(column,1,4)=='rowI')[,"column"];
+				c2=c.columninfo.where(substr(column,1,4)=='case')[,"column"];
 		loadActionSet / actionSet='decisionTree';
 		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'},
 			target='RMSE', inputs=c2,
