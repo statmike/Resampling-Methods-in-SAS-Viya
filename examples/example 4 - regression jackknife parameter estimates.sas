@@ -56,7 +56,7 @@ run;
 /* create jackknife resamples */
 proc cas;
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
-	resample.jackknife / intable='sample';
+	resample.jackknife / intable='sample' case='unique_case';
 run;
 
 /* analyze/train each jackknife resample with the same model effects selected on the full sample data */

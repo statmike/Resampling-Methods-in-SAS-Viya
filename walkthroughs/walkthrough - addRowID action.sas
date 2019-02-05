@@ -49,6 +49,12 @@ run;
 
 		/* drop the columns that are nolonger needed: n, threadid */
     alterTable / name=intable columns={{name='n', drop=TRUE},{name='threadid', drop=TRUE}};
+run;;
+
+		/* look at a few rows of the intable to see the values of rowID */
+		table.fetch / table=intable index=false to=10;
+run;
+
 quit;
 
 *cas mysess clear;

@@ -54,7 +54,7 @@ run;
 
 /* create bootstrap resamples */
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
-	resample.bootstrap / intable='sample' B=100 seed=12345 Bpct=1;
+	resample.bootstrap / intable='sample' B=100 seed=12345 Bpct=1 case='unique_case';
 run;
 
 /* analyze/train each bootstrap resample with the same model effects selected on the full sample data */
@@ -65,14 +65,8 @@ run;
          outputTables = {names={'ParameterEstimates'="sample_BS_PE","FitStatistics"="sample_BS_FS"}, groupByVarsRaw=TRUE, replace=TRUE},
          output = {casOut={name='sample_bs_pred', replace=TRUE},
          		   pred='Pred', resid='Resid', cooksd='CooksD', h='H',
-         		   copyVars={"bsID","bs_rowID","rowID","MSRP","bag"}};
+         		   copyVars={"bsID","bs_caseID","caseID","MSRP","bag"}};
 run;
-
-
-
-
-
-
 
 /* Use model RMSE from each bootstrap resample to detect influential rows of data */
 
@@ -80,67 +74,52 @@ run;
     rows are bootstrap resamples and columns are those found in the input sample table.  */
 proc cas;
     fedsql.execDirect / query="create table sample_bs_Influence {options replace=true} as
-                    select bsID, rowID, count(*) as bagged
+                    select bsID, caseID, count(*) as bagged
                       from sample_bs
                       where bag=1
-                      group by bsID, rowID";
+                      group by bsID, caseID";
 run;
 proc cas;
     loadActionSet / actionSet='transpose';
     transpose / table={name='sample_bs_Influence', groupBy={{name='bsID'}}},
-          id={'rowID'},
+          id={'caseID'},
           casOut={name='sample_bs_Influence', replace=true},
-          prefix='rowID_',
+          prefix='caseID_',
           validVarName='any',
           transpose={'bagged'};
     alterTable / name="sample_bs_Influence" columns={{name="_name_", drop=TRUE}};
 run;
-
-
-/* Use model of Difference in MAP from each bootstrap resample to detect influential rows of data */
 proc cas;
-assess / table={name='sample_BS_PRED', groupBy={{name='bsID'}, {name='BAG'}}},
-         casOut={name='sample_BS_PRED_LIFT', replace=true},
-         inputs={{name='Pred'}},
-         response='MSRP',
-         fitStatOut={name='sample_BS_PRED_FITSTAT', replace=true},
-         includeZeroDepth=true;
-/* merge the absolute difference in fitstat.map between bag=0/1 and use as response in tree */
-transpose / table={name='sample_BS_PRED_FITSTAT', groupBy={{name='bsID'}}},
-      id={'BAG'},
-      casOut={name='TEMP_FITSTAT', replace=true},
-      prefix='bag',
-      validVarName='any',
-      transpose={'_MAE_'};
-/* Need to quote **** because it is a fedsql reserverd word */
-fedsql.execDirect / query="create table sample_bs_Influence {options replace=True} as
-                select * from
-                  (select * from sample_bs_Influence) a
-                  join
-                  (select bsID, abs(bag1-bag0) as aMAE_1m0, (bag1-bag0) as MAE_1m0 from temp_FITSTAT) b
-                  using (bsID)";
-  dropTable name='temp_FITSTAT';
+    /* Need to quote Value because it is a fedsql reserved word */
+    fedsql.execDirect / query="create table sample_bs_Influence {options replace=True} as
+                    select * from
+                      (select * from sample_bs_Influence) a
+                      join
+                      (select bsID, "||quote('Value')||" as RMSE from sample_bs_fs where rowID='RMSE') b
+                      using (bsID)";
 run;
+
+/* use a decision tree to model RMSE with the counts of column occurence in the modeled resamples */
+/*
+ods graphics on;
+  proc treesplit data=mylib.sample_bs_Influence outmodel=mylib.sample_bs_Influence_Model_RMSE maxdepth=15 plots=zoomedtree(depth=3);
+    model RMSE = caseID_:;
+    prune none;
+  run;
+ods graphics off;
+*/
 
 proc cas;
 		table.columninfo result=c / table={name='sample_bs_Influence'};
+				c2=c.columninfo.where(substr(column,1,4)=='case')[,"column"];
 		loadActionSet / actionSet='decisionTree';
 		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'},
-			target='aMAE_1m0', inputs=c.columninfo.where(substr(column,1,4)=='rowI')[,"column"];,
+			target='RMSE', inputs=c2,
 			nBins=20, maxLevel=16, maxBranch=2, leafSize=5, crit='VARIANCE',
-    	missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, casOut={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE', replace=true},
-			mergeBin=true, encodeName=true;
-		decisionTree.dtreeTrain / table={name='SAMPLE_BS_INFLUENCE'},
-			target='MAE_1m0', inputs=c.columninfo.where(substr(column,1,4)=='rowI')[,"column"];,
-			nBins=20, maxLevel=16, maxBranch=2, leafSize=5, crit='VARIANCE',
-    	missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, casOut={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE', replace=true},
-			mergeBin=true, encodeName=true;
+    	missing='USEINSEARCH', minUseInSearch=1, binOrder=true, varImp=true, casOut={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE',
+      replace=true}, mergeBin=true, encodeName=true;
+		*decisionTree.dtreeScore / table={name='SAMPLE_BS_INFLUENCE'}, modelTable={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE'}, noPath=true, encodeName=true;
+		*table.fetch / table={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE'}, from=1, to=16384, sortBy={{name='_NodeID_', order='ASCENDING'}};
 run;
-
-
-
-
-
-
 
 *cas mysess clear;
