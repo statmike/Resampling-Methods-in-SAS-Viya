@@ -64,7 +64,9 @@ builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sas
 ---
 ## Syntax Reference
 Table of contents:
+
 * [Relationship Map](#relationship-map)
+* [Quickstart Examples](#quickstart-example)
 * [resample.addRowID action](#resampleaddRowID-action)
 * [resample.bootstrap action](#resamplebootstrap-action)
 * [resampe.doubleBootstrap action](#resampledoubleBootstrap-action)
@@ -74,6 +76,13 @@ Table of contents:
 This is a reference chart for the relationship between the actions and their output tables.
 
 ![Relationship Map](./docs/images/RelationshipMap50p.png)
+
+### Quickstart Examples
+
+resample.addRowID|resample.bootstrap|resample.doubleBootstrap|resample.jackknife
+-----|-----|-----|-----
+```resample.addRowID / intable="sample";```|```resample.bootstrap / intable="sample" case="unique_case" Seed=12345 B=100 Bpct=1;```|```resample.doubleBootstrap / intable="sample" case="unique_case" Seed=12345 B=100 Bpct=1 D=50 Dpct=1;```|```resample.jackknife / intable="sample" case="unique_case" ;```
+
 
 ### resample.addRowID action
 Updates the provided table <intable> with a new column named RowID that has a naturally numbered (1,2,...,n) across the distributed in-memory table.
