@@ -81,7 +81,7 @@ This is a reference chart for the relationship between the actions and their out
 
 resample.addRowID|resample.bootstrap|resample.doubleBootstrap|resample.jackknife
 -----|-----|-----|-----
-```resample.addRowID / intable="sample";```|```resample.bootstrap / intable="sample" case="unique_case" Seed=12345 B=100 Bpct=1;```|```resample.doubleBootstrap / intable="sample" case="unique_case" Seed=12345 B=100 Bpct=1 D=50 Dpct=1;```|```resample.jackknife / intable="sample" case="unique_case" ;```
+resample.addRowID /<br/>intable="sample";<br/><br/><br/><br/><br/><br/><br/>|resample.bootstrap /<br/>intable="sample"<br/>case="unique_case"<br/>Seed=12345<br/>B=100<br/>Bpct=1;<br/><br/><br/>|resample.doubleBootstrap /<br/>intable="sample"<br/>case="unique_case"<br/>Seed=12345<br/>B=100<br/>Bpct=1<br/>D=50<br/>Dpct=1;|resample.jackknife /<br/>intable="sample"<br/>case="unique_case";<br/><br/><br/><br/><br/><br/>
 
 
 ### resample.addRowID action
