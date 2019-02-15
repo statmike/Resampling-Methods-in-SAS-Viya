@@ -1,4 +1,4 @@
-/* a step by step walkthrough of the regressionPE action in the resample actionset
+/* a step by step walkthrough of the percentilePE action in the resample actionset
   link to wiki:
 */
 
@@ -53,15 +53,7 @@ run;
          		   copyVars={"MSRP"}};
 run;
 
-/* define parameters to hold the action inputs */
-	  intable='sample';
-    method='bootstrap';
-		  case='unique_case'; /* if the value is a column in intable then uses unique values of that column as cases, otherwise will use rows of intable as cases */
-      B = 100;
-      Bpct = 1;
-      seed = 12345;
-      D = 10;
-      Dpct = 1;
+    /* define inputs for the final model fit */
     class = {'Origin','DriveTrain'};
     model = {
          clb=TRUE,
@@ -78,111 +70,107 @@ run;
                {vars={'Horsepower','Wheelbase'}, interaction='CROSS'}
              }
          };
-run;
-
-/* run model on the sample data */
-    loadactionset / actionset='regression';
-    regression.glm /
+    /* fit model to the sample data */
+    regression.glm result=temp /
       table = intable,
       class = class,
       model = model,
       outputTables = {names={'ParameterEstimates'=intable||"_PE"}, replace=TRUE};
-run;
-
-/* based on bootstrap method, resample, fit same model to all the resamples, calculate percentiles of all the model parameter estimates, combine full and bs parameter estimates */
-    if method=='bootstrap' then do;
-      resample.bootstrap / intable=intable B=B seed=seed Bpct=Bpct case=case;
-      regression.glm /
+    /* create bootstrap resamples and fit model to each resample (BS)*/
+    resample.bootstrap / intable=intable B=100 seed=12345 Bpct=1 case='unique_case';
+      regression.glm result=temp /
         table = {name=intable||'_BS', groupBy='bsID'},
         class = class,
         model = model,
         partByVar = {name="bag",train="1",test="0"},
         outputTables = {names={'ParameterEstimates'=intable||"_BS_PE"}, groupByVarsRaw=TRUE, replace=TRUE};
-      percentile / table = {name=intable||"_BS_PE", groupBy='Parameter', vars={"Estimate"}},
-        casOut = {name=intable||"_BS_PE_perc", replace=TRUE},
-        values = {2.5, 50, 97.5};
-      *fedSql.execDirect / query='create table sample_BS_PE_PLOT {options replace=true} as
-                                  select * from
-                                  	(select "Parameter", Estimate, LowerCL, UpperCL from sample_PE) a
-                                  	join
-                                  	(select "Parameter", _Value_ as BS_LowerCL from sample_BS_PE_perc where _pctl_=2.5) b
-                                  	using ("Parameter")
-                                  	join
-                                  	(select "Parameter", _Value_ as BS_Estimate from sample_BS_PE_perc where _pctl_=50) c
-                                  	using ("Parameter")
-                                  	join
-                                  	(select "Parameter", _Value_ as BS_UpperCL from sample_BS_PE_perc where _pctl_=97.5) d
-                                  	using ("Parameter")
-                                  ';
-    end;
-    else if method=='doubleBootstrap' then do;
-      resample.doubleBootstrap / intable=intable B=B seed=seed Bpct=Bpct case=case D=D Dpct=Dpct;
-      regression.glm /
+    /* create double-bootstrap resamples and fit model to each resample (BS and DBS) */
+    resample.doubleBootstrap / intable=intable B=100 seed=12345 Bpct=1 case='unique_case' D=10 Dpct=1;
+      regression.glm result=temp /
         table = {name=intable||'_BS', groupBy='bsID'},
         class = class,
         model = model,
         partByVar = {name="bag",train="1",test="0"},
         outputTables = {names={'ParameterEstimates'=intable||"_BS_PE"}, groupByVarsRaw=TRUE, replace=TRUE};
-      percentile / table = {name=intable||"_BS_PE", groupBy='Parameter', vars={"Estimate"}},
-        casOut = {name=intable||"_BS_PE_perc", replace=TRUE},
-        values = {2.5, 50, 97.5};
-      regression.glm /
+      regression.glm result=temp /
         table = {name=intable||'_dbs', groupBy={'bsID','dbsID'}},
         class = class,
         model = model,
         partByVar = {name="bag",train="1",test="0"},
         outputTables = {names={'ParameterEstimates'=intable||"_DBS_PE"}, groupByVarsRaw=TRUE, replace=TRUE};
-      percentile / table = {name=intable||"_DBS_PE", groupBy='Parameter', vars={"Estimate"}},
-        casOut = {name=intable||"_DBS_PE_perc", replace=TRUE},
-        values = {2.5, 50, 97.5};
-      *fedSql.execDirect / query='create table sample_BS_PE_PLOT {options replace=true} as
-                      select * from
-                        (select "Parameter", Estimate, LowerCL, UpperCL from sample_PE) a
-                        join
-                        (select "Parameter", _Value_ as BS_LowerCL from sample_BS_PE_perc where _pctl_=2.5) b
-                        using ("Parameter")
-                        join
-                        (select "Parameter", _Value_ as BS_Estimate from sample_BS_PE_perc where _pctl_=50) c
-                        using ("Parameter")
-                        join
-                        (select "Parameter", _Value_ as BS_UpperCL from sample_BS_PE_perc where _pctl_=97.5) d
-                        using ("Parameter")
-                        join
-                        (select "Parameter", _Value_ as DBS_LowerCL from sample_DBS_PE_perc where _pctl_=2.5) b
-                        using ("Parameter")
-                        join
-                        (select "Parameter", _Value_ as DBS_Estimate from sample_DBS_PE_perc where _pctl_=50) c
-                        using ("Parameter")
-                        join
-                        (select "Parameter", _Value_ as DBS_UpperCL from sample_DBS_PE_perc where _pctl_=97.5) d
-                        using ("Parameter")
-                    ';
-    end;
-    else if method=='jackknife' then do;
-      resample.jackknife / intable=intable case=case;
-      regression.glm /
+    /* create jackknife resamples and fit model to each resample (JK) */
+    resample.jackknife / intable=intable case='unique_case';
+      regression.glm result=temp /
         table = {name=intable||'_JK', groupBy='jkID'},
         class = class,
         model = model,
         partByVar = {name="bag",train="1",test="0"},
         outputTables = {names={'ParameterEstimates'=intable||"_JK_PE"}, groupByVarsRaw=TRUE, replace=TRUE};
+run;
+
+/* define parameters to hold the action inputs */
+    alpha=0.05;
+run;
+
+/* detect intable_method_PE tables and create percentiles for each then merge all the percentile together into intable_PE_percentiles */
+
+		/* check for existance of PE tables from each of the resample methods (BS, DBS, JK) */
+		table.tableExisit result=bs / name=intable||'_BS_PE';
+		table.tableExisit result=dbs / name=intable||'_DBS_PE';
+		table.tableExisit result=jk / name=intable||'_JK_PE';
+		/* if atleast one PE table exists then setup the ouput query */
+		if bs.exists+dbs.exists+jk.exists>0 then do;
+			PEquery='create table sample_PE_percentiles {options replace=true} as
+								select * from
+									(select "Parameter", Estimate, LowerCL, UpperCL from '|| intable ||'_PE) a';
+		end;
+		/* if intable_BS_PE exists then do percentiles and add the parameters to the output query */
+    if bs.exists then do;
+      percentile / table = {name=intable||"_BS_PE", groupBy='Parameter', vars={"Estimate"}},
+        casOut = {name=intable||"_BS_PE_perc", replace=TRUE},
+        values = {2.5, 50, 97.5};
+      PEquery=PEquery||'join
+                        (select "Parameter", _Value_ as BS_LowerCL from '||intable||'_BS_PE_perc where _pctl_=2.5) bb
+                        using ("Parameter")
+                        join
+                        (select "Parameter", _Value_ as BS_Estimate from '||intable||'_BS_PE_perc where _pctl_=50) cb
+                        using ("Parameter")
+                        join
+                        (select "Parameter", _Value_ as BS_UpperCL from '||intable||'_BS_PE_perc where _pctl_=97.5) db
+                        using ("Parameter")';
+    end;
+		/* if intable_DBS_PE exists then do percentiles and add the parameters to the output query */
+    if dbs.exists then do;
+      percentile / table = {name=intable||"_DBS_PE", groupBy='Parameter', vars={"Estimate"}},
+        casOut = {name=intable||"_DBS_PE_perc", replace=TRUE},
+        values = {2.5, 50, 97.5};
+      PEquery=PEquery||'join
+                        (select "Parameter", _Value_ as DBS_LowerCL from '||intable||'_DBS_PE_perc where _pctl_=2.5) bd
+                        using ("Parameter")
+                        join
+                        (select "Parameter", _Value_ as DBS_Estimate from '||intable||'_DBS_PE_perc where _pctl_=50) cd
+                        using ("Parameter")
+                        join
+                        (select "Parameter", _Value_ as DBS_UpperCL from '||intable||'_DBS_PE_perc where _pctl_=97.5) dd
+                        using ("Parameter")';
+    end;
+		/* if intable_JK_PE exists then do percentiles and add the parameters to the output query */
+    if jk.exists then do;
       percentile / table = {name=intable||"_JK_PE", groupBy='Parameter', vars={"Estimate"}},
         casOut = {name=intable||"_JK_PE_perc", replace=TRUE},
         values = {2.5, 50, 97.5};
-      *fedSql.execDirect / query='create table sample_JK_PE_PLOT {options replace=true} as
-                      select * from
-                        (select "Parameter", Estimate, LowerCL, UpperCL from sample_PE) a
-                        join
-                        (select "Parameter", _Value_ as JK_LowerCL from sample_JK_PE_perc where _pctl_=2.5) b
+      PEquery=PEquery||'join
+                        (select "Parameter", _Value_ as JK_LowerCL from '||intable||'_JK_PE_perc where _pctl_=2.5) bj
                         using ("Parameter")
                         join
-                        (select "Parameter", _Value_ as JK_Estimate from sample_JK_PE_perc where _pctl_=50) c
+                        (select "Parameter", _Value_ as JK_Estimate from '||intable||'_JK_PE_perc where _pctl_=50) cj
                         using ("Parameter")
                         join
-                        (select "Parameter", _Value_ as JK_UpperCL from sample_JK_PE_perc where _pctl_=97.5) d
-                        using ("Parameter")
-                    ';
+                        (select "Parameter", _Value_ as JK_UpperCL from '||intable||'_JK_PE_perc where _pctl_=97.5) dj
+                        using ("Parameter")';
     end;
+		/* execute the output query to create intable_PE_percentiles */
+    fedsql.exectDirect / query=PEquery;
 run;
 
 
