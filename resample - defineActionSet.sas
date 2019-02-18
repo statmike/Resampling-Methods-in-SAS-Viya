@@ -126,7 +126,7 @@ proc cas;
 									fedsql.execDirect result=q2 / query='select max(nthreads) as nthreads from tempholdbss';
 									dropTable name='tempholdbss';
 									bss=q1[1,1].cbsid/q2[1,1].nthreads;
-									*print bss;							
+									*print bss;
 							table.columninfo result=i / table=intable;
 									if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
 											fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct caseID from '|| intable;
@@ -221,6 +221,71 @@ proc cas;
 																using(caseID)';
 							dropTable name=intable||'_jkkey';
 							partition / casout={name=intable||'_jk', replace=TRUE} table={name=intable||'_jk', groupby={{name='jkID'}}};
+				"
+			}
+			{
+				name = "percentilePE"
+				desc = "Create a table with percentile based CI's for each resample method that has been run"
+				parms = {
+					{name="intable", type="STRING", required=TRUE},
+					{name="alpha", type="DOUBLE", required=TRUE}
+				}
+				definition = "
+							percs={100*alpha/2,50,100-100*alpha/2};
+							table.tableExists result=bs / name=intable||'_BS_PE';
+							table.tableExists result=dbs / name=intable||'_DBS_PE';
+							table.tableExists result=jk / name=intable||'_JK_PE';
+							if bs.exists+dbs.exists+jk.exists>0 then do;
+								PEquery='create table sample_PE_percentiles {options replace=true} as
+													select * from
+														(select ""Parameter"", Estimate, LowerCL, UpperCL from '|| intable ||'_PE) a';
+							end;
+					    if bs.exists then do;
+					      percentile / table = {name=intable||'_BS_PE', groupBy='Parameter', vars={'Estimate'}},
+					        casOut = {name=intable||'_BS_PE_perc', replace=TRUE},
+					        values = percs;*{2.5, 50, 97.5};
+					      PEquery=PEquery||' join
+					                        (select ""Parameter"", _Value_ as BS_LowerCL from '||intable||'_BS_PE_perc where _pctl_='||(string)(percs[1])||') bb
+					                        using (""Parameter"")
+					                        join
+					                        (select ""Parameter"", _Value_ as BS_Estimate from '||intable||'_BS_PE_perc where _pctl_=50) cb
+					                        using (""Parameter"")
+					                        join
+					                        (select ""Parameter"", _Value_ as BS_UpperCL from '||intable||'_BS_PE_perc where _pctl_='||(string)(percs[3])||') db
+					                        using (""Parameter"")';
+					    end;
+					    if dbs.exists then do;
+					      percentile / table = {name=intable||'_DBS_PE', groupBy='Parameter', vars={'Estimate'}},
+					        casOut = {name=intable||'_DBS_PE_perc', replace=TRUE},
+					        values = percs;*{2.5, 50, 97.5};
+					      PEquery=PEquery||' join
+					                        (select ""Parameter"", _Value_ as DBS_LowerCL from '||intable||'_DBS_PE_perc where _pctl_='||(string)(percs[1])||') bd
+					                        using (""Parameter"")
+					                        join
+					                        (select ""Parameter"", _Value_ as DBS_Estimate from '||intable||'_DBS_PE_perc where _pctl_=50) cd
+					                        using (""Parameter"")
+					                        join
+					                        (select ""Parameter"", _Value_ as DBS_UpperCL from '||intable||'_DBS_PE_perc where _pctl_='||(string)(percs[3])||') dd
+					                        using (""Parameter"")';
+					    end;
+					    if jk.exists then do;
+					      percentile / table = {name=intable||'_JK_PE', groupBy='Parameter', vars={'Estimate'}},
+					        casOut = {name=intable||'_JK_PE_perc', replace=TRUE},
+					        values = percs;*{2.5, 50, 97.5};
+					      PEquery=PEquery||' join
+					                        (select ""Parameter"", _Value_ as JK_LowerCL from '||intable||'_JK_PE_perc where _pctl_='||(string)(percs[1])||') bj
+					                        using (""Parameter"")
+					                        join
+					                        (select ""Parameter"", _Value_ as JK_Estimate from '||intable||'_JK_PE_perc where _pctl_=50) cj
+					                        using (""Parameter"")
+					                        join
+					                        (select ""Parameter"", _Value_ as JK_UpperCL from '||intable||'_JK_PE_perc where _pctl_='||(string)(percs[3])||') dj
+					                        using (""Parameter"")';
+					    end;
+							if bs.exists+dbs.exists+jk.exists>0 then do;
+								*print PEquery;
+					    	fedsql.execDirect / query=PEquery;
+							end;
 				"
 			}
 		}
