@@ -27,7 +27,7 @@ As updates are made to the repository there are dependencies between files and f
   * [example 1 - loading and using bootstrap action from resample.sas](./examples/example%201%20-%20loading%20and%20using%20bootstrap%20action%20from%20resample.sas)
   * [example 2 - regression bootstrap parameter estimates.sas](./examples/example%202%20-%20regression%20bootstrap%20parameter%20estimates.sas)
   * [example 3 - regression double-bootstrap parameter estimates.sas](./examples/example%203%20-%20regression%20double%20bootstrap%20parameter%20estimates.sas)
-  * [example 4 - regression jackknife parameter estimates.sas](./examples/example%203%20-%20regression%20jackknife%20parameter%20estimates.sas)
+  * [example 4 - regression jackknife parameter estimates.sas](./examples/example%204%20-%20regression%20jackknife%20parameter%20estimates.sas)
   * [example 5 - using bootstrap results to diagnose influence with model fit.sas](./examples/example%205%20-%20using%20bootstrap%20results%20to%20diagnose%20influence%20with%20model%20fit.sas)
   * [example 6 - using bootstrap results to diagnose influence with model accuracy.sas](./examples/example%206%20-%20using%20bootstrap%20results%20to%20diagnose%20influence%20with%20model%20accuracy.sas)
 * Folder: [walkthroughs](./walkthroughs) contains step-by-step commented versions of the code within the actions to help understand how they work.  This is great for learning!
@@ -35,7 +35,9 @@ As updates are made to the repository there are dependencies between files and f
   * [walkthrough - bootstrap action.sas](./walkthroughs/walkthrough%20-%20bootstrap%20action.sas)
   * [walkthrough - doubleBootstrap action.sas](./walkthroughs/walkthrough%20-%20doubleBootstrap%20action.sas)
   * [walkthrough - jackknife action.sas](./walkthroughs/walkthrough%20-%20jackknife%20action.sas)
+  * [walkthrough - percentilePE.sas](./walkthroughs/walkthrough%20-%20percentilePE.sas)
 * Folder: [applications](./applications) will soon contain broader applications of the actions
+* Folder: [upcoming](./upcoming) contains walkthroughs and examples in development (undocumented here)
 * Folder: [tools](./tools) a set of stand-alone examples to diagnose and understand the computing environment
   * [walkthrough - working with distributed data.sas](./tools/walkthrough%20-%20working%20with%20distributed%20data.sas)
   * [cas environment layout.sas](./tools/cas%20environment%20layout.sas)
@@ -71,6 +73,7 @@ Table of contents:
 * [resample.bootstrap action](#resamplebootstrap-action)
 * [resampe.doubleBootstrap action](#resampledoubleBootstrap-action)
 * [resample.jackknife action](#resamplejackknife-action)
+* [resample.percentilePE action](#resamplepercentilepe-action)
 
 ### Relationship Map
 This is a reference chart for the relationship between the actions and their output tables.
@@ -79,9 +82,9 @@ This is a reference chart for the relationship between the actions and their out
 
 ### Quickstart Examples
 
-resample.addRowID|resample.bootstrap|resample.doubleBootstrap|resample.jackknife
------|-----|-----|-----
-resample.addRowID /<br/>intable="sample";<br/><br/><br/><br/><br/><br/><br/>|resample.bootstrap /<br/>intable="sample"<br/>case="unique_case"<br/>Seed=12345<br/>B=100<br/>Bpct=1;<br/><br/><br/>|resample.doubleBootstrap /<br/>intable="sample"<br/>case="unique_case"<br/>Seed=12345<br/>B=100<br/>Bpct=1<br/>D=50<br/>Dpct=1;|resample.jackknife /<br/>intable="sample"<br/>case="unique_case";<br/><br/><br/><br/><br/><br/>
+resample.addRowID|resample.bootstrap|resample.doubleBootstrap|resample.jackknife|resample.percentilePE
+-----|-----|-----|-----|-----
+resample.addRowID /<br/>intable="sample";<br/><br/><br/><br/><br/><br/><br/>|resample.bootstrap /<br/>intable="sample"<br/>case="unique_case"<br/>Seed=12345<br/>B=100<br/>Bpct=1;<br/><br/><br/>|resample.doubleBootstrap /<br/>intable="sample"<br/>case="unique_case"<br/>Seed=12345<br/>B=100<br/>Bpct=1<br/>D=50<br/>Dpct=1;|resample.jackknife /<br/>intable="sample"<br/>case="unique_case";<br/><br/><br/><br/><br/><br/>|resample.percentilePE /<br/>intable="sample"<br/>alpha=0.05;<br/><br/><br/><br/><br/><br/>
 
 
 ### resample.addRowID action
@@ -212,6 +215,28 @@ Parameter Descriptions
       required
       Specifies the name of the column from `<intable>` that connects groupings of rows that make up cases.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling.
 ```
+
+### resample.percentilePE action
+This action creates percentile confidence intervals for parameter estimates.  The action uses the sample table name `<intable>` and expect to find `<intable>`_PE for the full data parameter estimates and one or more of `<intable>`_BS_PE, `<intable>`_DBS_PE, and `<intable>`_JK_PE that are the parameter estimates from fitting the model to the resample data create by the bootstrap, doubleBoostrap, and jackknife actions.  Check [example 2](./examples/example%202%20-%20regression%20bootstrap%20parameter%20estimates.sas), [example 3](./examples/example%203%20-%20regression%20double%20bootstrap%20parameter%20estimates.sas), and [example 4](./examples/example%204%20-%20regression%20jackknife%20parameter%20estimates.sas) for help using this action.
+
+```
+CASL Syntax
+
+    resample.percentilePE /
+      intable="string"
+      alpha=double
+
+Parameter Descriptions
+
+    intable="string"
+      required
+      specifies the name of the sample table
+        The action will look for <intable>_BS_PE, <intable>_DBS_PE, and <intable>_JK_PE.  It expects to also find <intable>_PE for the full data.  These are the outputs of parameter estimates from the model action of your choice.  Run the resample action(s) you want then do groupby model fitting with the model action of your choice and use this naming for the PE files.
+    alpha=double
+      required
+      specifies the alpha level of the two-sided percentile confidence interval that will be constructed.  Provide a value in (0,1).
+```
+
 ---
 # Further SAS References
 * [SAS Support Supplied macros for Bootstrap, Jackknife and some bias and confidence interval computations](http://support.sas.com/kb/24/982.html)

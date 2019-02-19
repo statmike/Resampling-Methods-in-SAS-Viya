@@ -79,39 +79,20 @@ proc cas;
 							}
 		 			},
          partByVar = {name="bag",train="1",test="0"},
-         outputTables = {names={'ParameterEstimates'="sample_BS_PE","FitStatistics"="sample_BS_FS"}, groupByVarsRaw=TRUE, replace=TRUE},
-         output = {casOut={name='sample_bs_pred', replace=TRUE},
-         		   pred='Pred', resid='Resid', cooksd='CooksD', h='H',
-         		   copyVars={"bsID","bs_rowID","rowID","MSRP","bag"}};
+         outputTables = {names={'ParameterEstimates'="sample_BS_PE"}, groupByVarsRaw=TRUE, replace=TRUE};
+run;
+
+
+/* create percentile intervals for the bootstrap samples and merge with full model CI
+		this action expects table intable_BS_PE and intable_PE */
+proc cas;
+	resample.percentilePE / intable='sample' alpha=0.05;
 run;
 
 
 /* plot the parameter effects and CI from the full sample data with BS percentile intervals on top */
-proc cas;
-	/* get percentiles for 95% BS CI for each parameter */
-	percentile / table = {name="sample_BS_PE", groupBy='Parameter', vars={"Estimate"}},
-				 casOut = {name="sample_BS_PE_perc", replace=TRUE},
-				 values = {2.5, 50, 97.5};
-	/* merge full sample parameter estimates with 95% BS CI estimates. */
-		/* NOTE: need to quote "parameter" because it is a reserved word in fedsql */
-	fedSql.execDirect / query='create table sample_BS_PE_PLOT {options replace=true} as
-									select * from
-										(select "Parameter", Estimate, LowerCL, UpperCL from sample_PE) a
-										join
-										(select "Parameter", _Value_ as BS_LowerCL from sample_BS_PE_perc where _pctl_=2.5) b
-										using ("Parameter")
-										join
-										(select "Parameter", _Value_ as BS_Estimate from sample_BS_PE_perc where _pctl_=50) c
-										using ("Parameter")
-										join
-										(select "Parameter", _Value_ as BS_UpperCL from sample_BS_PE_perc where _pctl_=97.5) d
-										using ("Parameter")
-								';
-run;
-
-
 data sample_BS_PE_PLOT;
-	set mylib.sample_bs_pe_plot;
+	set mylib.sample_pe_pctCI;
 run;
 
 title "Evaluate Parameter Estimates with 95% CI";

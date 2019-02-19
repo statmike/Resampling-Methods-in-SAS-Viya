@@ -79,39 +79,20 @@ proc cas;
 							}
 		 			},
          partByVar = {name="bag",train="1",test="0"}, /* only 1 row per sample without bag=1 and it may be missing... */
-         outputTables = {names={'ParameterEstimates'="sample_JK_PE","FitStatistics"="sample_JK_FS"}, groupByVarsRaw=TRUE, replace=TRUE},
-         output = {casOut={name='sample_jk_pred', replace=TRUE},
-         		   pred='Pred', resid='Resid', cooksd='CooksD', h='H',
-         		   copyVars={"jkID","rowID","MSRP","bag"}};
+         outputTables = {names={'ParameterEstimates'="sample_JK_PE","FitStatistics"="sample_JK_FS"}, groupByVarsRaw=TRUE, replace=TRUE};
+run;
+
+
+/* create percentile intervals for the jackknife samples and merge with full model CI
+		this action expects table intable_JK_PE and intable_PE */
+proc cas;
+	resample.percentilePE / intable='sample' alpha=0.05;
 run;
 
 
 /* plot the parameter effects and CI from the full sample data with JK percentile intervals on top */
-proc cas;
-	/* get percentiles for 95% JK CI for each parameter */
-	percentile / table = {name="sample_JK_PE", groupBy='Parameter', vars={"Estimate"}},
-				 casOut = {name="sample_JK_PE_perc", replace=TRUE},
-				 values = {2.5, 50, 97.5};
-	/* merge full sample parameter estimates with 95% JK CI estimates. */
-		/* NOTE: need to quote "parameter" because it is a reserved word in fedsql */
-	fedSql.execDirect / query='create table sample_JK_PE_PLOT {options replace=true} as
-									select * from
-										(select "Parameter", Estimate, LowerCL, UpperCL from sample_PE) a
-										join
-										(select "Parameter", _Value_ as JK_LowerCL from sample_JK_PE_perc where _pctl_=2.5) b
-										using ("Parameter")
-										join
-										(select "Parameter", _Value_ as JK_Estimate from sample_JK_PE_perc where _pctl_=50) c
-										using ("Parameter")
-										join
-										(select "Parameter", _Value_ as JK_UpperCL from sample_JK_PE_perc where _pctl_=97.5) d
-										using ("Parameter")
-								';
-run;
-
-
 data sample_JK_PE_PLOT;
-	set mylib.sample_jk_pe_plot;
+	set mylib.sample_pe_pctCI;
 run;
 
 title "Evaluate Parameter Estimates with 95% CI";

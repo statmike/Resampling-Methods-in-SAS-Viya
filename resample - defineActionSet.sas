@@ -236,14 +236,14 @@ proc cas;
 							table.tableExists result=dbs / name=intable||'_DBS_PE';
 							table.tableExists result=jk / name=intable||'_JK_PE';
 							if bs.exists+dbs.exists+jk.exists>0 then do;
-								PEquery='create table sample_PE_percentiles {options replace=true} as
+								PEquery='create table sample_PE_pctCI {options replace=true} as
 													select * from
 														(select ""Parameter"", Estimate, LowerCL, UpperCL from '|| intable ||'_PE) a';
 							end;
 					    if bs.exists then do;
 					      percentile / table = {name=intable||'_BS_PE', groupBy='Parameter', vars={'Estimate'}},
 					        casOut = {name=intable||'_BS_PE_perc', replace=TRUE},
-					        values = percs;*{2.5, 50, 97.5};
+					        values = percs;
 					      PEquery=PEquery||' join
 					                        (select ""Parameter"", _Value_ as BS_LowerCL from '||intable||'_BS_PE_perc where _pctl_='||(string)(percs[1])||') bb
 					                        using (""Parameter"")
@@ -257,7 +257,7 @@ proc cas;
 					    if dbs.exists then do;
 					      percentile / table = {name=intable||'_DBS_PE', groupBy='Parameter', vars={'Estimate'}},
 					        casOut = {name=intable||'_DBS_PE_perc', replace=TRUE},
-					        values = percs;*{2.5, 50, 97.5};
+					        values = percs;
 					      PEquery=PEquery||' join
 					                        (select ""Parameter"", _Value_ as DBS_LowerCL from '||intable||'_DBS_PE_perc where _pctl_='||(string)(percs[1])||') bd
 					                        using (""Parameter"")
@@ -271,7 +271,7 @@ proc cas;
 					    if jk.exists then do;
 					      percentile / table = {name=intable||'_JK_PE', groupBy='Parameter', vars={'Estimate'}},
 					        casOut = {name=intable||'_JK_PE_perc', replace=TRUE},
-					        values = percs;*{2.5, 50, 97.5};
+					        values = percs;
 					      PEquery=PEquery||' join
 					                        (select ""Parameter"", _Value_ as JK_LowerCL from '||intable||'_JK_PE_perc where _pctl_='||(string)(percs[1])||') bj
 					                        using (""Parameter"")

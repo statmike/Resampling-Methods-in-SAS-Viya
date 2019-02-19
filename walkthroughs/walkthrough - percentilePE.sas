@@ -11,7 +11,7 @@ proc cas;
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
 quit;
 
-/* load example data to work with - three possible scenarios
+/* SETUP: load example data to work with - three possible scenarios
 		if rows are cases and no column identifies cases then: cases=NO and multipleRows=NO
 		if rows are cases and unique_case is a column holding identifier then: cases=YES and multipleRows=NO
 		if multiple rows per cases then need a column, unique_case, to hold identifier: cases=YES and multipleRows=YES
@@ -34,7 +34,7 @@ proc cas;
 		table.fetch / table='sample' index=false to=12;
 run;
 
-/* build model - select effects with forwardswap, consider 2-way interactions, include poly(2) terms for enginesize, horsepower, weight */
+/* SETUP: build model - select effects with forwardswap, consider 2-way interactions, include poly(2) terms for enginesize, horsepower, weight */
    loadactionset / actionset='regression';
    glm / table  = {name='sample'},
 		 class = {'Cylinders','Make','Type','Origin','DriveTrain'},
@@ -53,7 +53,7 @@ run;
          		   copyVars={"MSRP"}};
 run;
 
-    /* define inputs for the final model fit */
+/* SETUP: define inputs for the final model fit */
     class = {'Origin','DriveTrain'};
     model = {
          clb=TRUE,
@@ -109,13 +109,15 @@ run;
         outputTables = {names={'ParameterEstimates'=intable||"_JK_PE"}, groupByVarsRaw=TRUE, replace=TRUE};
 run;
 
+/* START WALKTHROUGH of the percentilePE action */
+
 /* define parameters to hold the action inputs */
 		intable='sample';
     alpha=0.05;
 run;
 
 /* detect intable_method_PE tables and create percentiles for each then merge all the percentile together into intable_PE_percentiles */
-		/* create the percentiles list */
+		/* create the percentiles list using the input=alpha */
 		percs={100*alpha/2,50,100-100*alpha/2};
 		/* check for existance of PE tables from each of the resample methods (BS, DBS, JK) */
 		table.tableExists result=bs / name=intable||'_BS_PE';
@@ -123,7 +125,7 @@ run;
 		table.tableExists result=jk / name=intable||'_JK_PE';
 		/* if atleast one PE table exists then setup the ouput query */
 		if bs.exists+dbs.exists+jk.exists>0 then do;
-			PEquery='create table sample_PE_percentiles {options replace=true} as
+			PEquery='create table sample_PE_pctCI {options replace=true} as
 								select * from
 									(select "Parameter", Estimate, LowerCL, UpperCL from '|| intable ||'_PE) a';
 		end;
@@ -131,7 +133,7 @@ run;
     if bs.exists then do;
       percentile / table = {name=intable||"_BS_PE", groupBy='Parameter', vars={"Estimate"}},
         casOut = {name=intable||"_BS_PE_perc", replace=TRUE},
-        values = percs;*{2.5, 50, 97.5};
+        values = percs;
       PEquery=PEquery||' join
                         (select "Parameter", _Value_ as BS_LowerCL from '||intable||'_BS_PE_perc where _pctl_='||(string)(percs[1])||') bb
                         using ("Parameter")
@@ -146,7 +148,7 @@ run;
     if dbs.exists then do;
       percentile / table = {name=intable||"_DBS_PE", groupBy='Parameter', vars={"Estimate"}},
         casOut = {name=intable||"_DBS_PE_perc", replace=TRUE},
-        values = percs;*{2.5, 50, 97.5};
+        values = percs;
       PEquery=PEquery||' join
                         (select "Parameter", _Value_ as DBS_LowerCL from '||intable||'_DBS_PE_perc where _pctl_='||(string)(percs[1])||') bd
                         using ("Parameter")
@@ -161,7 +163,7 @@ run;
     if jk.exists then do;
       percentile / table = {name=intable||"_JK_PE", groupBy='Parameter', vars={"Estimate"}},
         casOut = {name=intable||"_JK_PE_perc", replace=TRUE},
-        values = percs;*{2.5, 50, 97.5};
+        values = percs;
       PEquery=PEquery||' join
                         (select "Parameter", _Value_ as JK_LowerCL from '||intable||'_JK_PE_perc where _pctl_='||(string)(percs[1])||') bj
                         using ("Parameter")
@@ -172,7 +174,7 @@ run;
                         (select "Parameter", _Value_ as JK_UpperCL from '||intable||'_JK_PE_perc where _pctl_='||(string)(percs[3])||') dj
                         using ("Parameter")';
     end;
-		/* execute the output query to create intable_PE_percentiles */
+		/* execute the output query to create intable_PE_pctCI */
 		if bs.exists+dbs.exists+jk.exists>0 then do;
 			*print PEquery;
     	fedsql.execDirect / query=PEquery;
@@ -183,28 +185,3 @@ run;
 
 
 *cas mysess clear;
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-idea here
-1 - run full model - output PE
-2 - run selected resample method - output PE by sample
-3 - run percentiles on resampled PE
-4 - combine PE
-
-notes
-  case on method eval
-  percentile - prevent _f columns = dont worry if next step works...
-  possible to transpose?
-
-*/
