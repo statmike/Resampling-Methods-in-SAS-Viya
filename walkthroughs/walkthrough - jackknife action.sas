@@ -81,15 +81,20 @@ run;
 
 		/* create a structure for the jackknife sampling.
       		Will make resamples equal to the size of the original table -1 row
-      		single='YES' create this structure on a single node/thread of the CAS environment */
+    */
 		datastep.runcode result=t / code='data '|| intable ||'_jkkey;
-									do jkID = 1 to '|| r.numCases ||';
+									nObsPerThread  = int('|| r.numCases ||'/_nthreads_);
+									nExtras        = mod('|| r.numCases ||',_nthreads_);
+									lower=(_threadid_-1)*nObsPerThread+1 + min(nExtras,_threadid_-1);
+									upper=_threadid_*nObsPerThread + 1*min(nExtras,_threadid_);
+									do jkID = lower to upper;
 										do caseID = 1 to '|| r.numCases ||';
 											bag=1;
 											if jkID ne caseID then output;
 										end;
 									end;
-								run;' single='YES';
+									drop nObsPerThread nExtras lower upper;
+								run;';
 run;
 
 		/*  take a look at how the table is distributed in the CAS environment */

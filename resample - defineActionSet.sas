@@ -206,13 +206,18 @@ proc cas;
 									end;
 							r.numCases=r.numrows;
 							datastep.runcode result=t / code='data '|| intable ||'_jkkey;
-														do jkID = 1 to '|| r.numCases ||';
-												 			do caseID = 1 to '|| r.numCases ||';
+														nObsPerThread  = int('|| r.numCases ||'/_nthreads_);
+														nExtras        = mod('|| r.numCases ||',_nthreads_);
+														lower=(_threadid_-1)*nObsPerThread+1 + min(nExtras,_threadid_-1);
+														upper=_threadid_*nObsPerThread + 1*min(nExtras,_threadid_);
+														do jkID = lower to upper;
+															do caseID = 1 to '|| r.numCases ||';
 																bag=1;
 																if jkID ne caseID then output;
 															end;
 														end;
-													run;' single='YES';
+														drop nObsPerThread nExtras lower upper;
+													run;';
 							fedSql.execDirect / query='create table '|| intable ||'_jk {options replace=TRUE} as
 															select * From
 																(select jkID, caseID, bag from '|| intable ||'_jkkey) a
