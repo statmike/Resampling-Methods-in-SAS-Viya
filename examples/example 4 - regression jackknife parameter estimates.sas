@@ -78,7 +78,7 @@ proc cas;
 								{vars={'Horsepower','Wheelbase'}, interaction='CROSS'}
 							}
 		 			},
-         partByVar = {name="bag",train="1",test="0"}, /* only 1 row per sample without bag=1 and it may be missing... */
+         partByVar = {name="bag",train="1",test="0"}, /* only 1 row per sample without bag=1 but useful for getting prediction */
          outputTables = {names={'ParameterEstimates'="sample_JK_PE","FitStatistics"="sample_JK_FS"}, groupByVarsRaw=TRUE, replace=TRUE};
 run;
 

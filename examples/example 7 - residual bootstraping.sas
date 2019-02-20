@@ -57,10 +57,11 @@ run;
   			         outputTables = {names={'ParameterEstimates'="sample_PE"}, replace=TRUE},
   			         output = {casOut={name='sample_pred', replace=TRUE},
   			         		   pred='Pred', resid='Resid', cooksd='CooksD', h='H',
-  			         		   copyVars={"MSRP"}};
+  			         		   copyVars="ALL_MODEL"};
   			run;
 
 /***************************************************************************************************************************/
+/* added to example 3 */
 
 proc cas;
 	builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
@@ -70,6 +71,7 @@ proc cas;
 run;
 
 /***************************************************************************************************************************/
+/* edit to example 3 */
 
 /* create bootstrap resamples */
 proc cas;
@@ -78,11 +80,12 @@ proc cas;
 run;
 
 /***************************************************************************************************************************/
+/* added to example 3 */
 
 proc cas;
 	fedsql.execDirect / query='create table sample_bs {options replace=TRUE} as
 								select * from
-									(select bsID, bs_caseID, residID, resid from sample_pred_resid_bs where bag=1) a
+									(select bsID, CASE when bs_caseID is null then caseID else bs_caseID END as bs_caseID, bag, residID, resid from sample_pred_resid_bs) a
 									left outer join
 									(select * from sample_pred) b
 									on a.bs_caseID=b.caseID
@@ -111,7 +114,7 @@ proc cas;
 								{vars={'Horsepower','Wheelbase'}, interaction='CROSS'}
 							}
 		 			},
-         /* partByVar = {name="bag",train="1",test="0"}, */
+         partByVar = {name="bag",train="1",test="0"},
          outputTables = {names={'ParameterEstimates'="sample_BS_PE"}, groupByVarsRaw=TRUE, replace=TRUE};
 run;
 

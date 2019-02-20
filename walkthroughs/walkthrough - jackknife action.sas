@@ -80,7 +80,7 @@ run;
 run;
 
 		/* create a structure for the jackknife sampling.
-      		Will make resamples equal to the size of the original table -1 row
+      		Will make resamples equal to the size of the original table: n-1 rows with bag=1, 1 row with bag=0
     */
 		datastep.runcode result=t / code='data '|| intable ||'_jkkey;
 									nObsPerThread  = int('|| r.numCases ||'/_nthreads_);
@@ -89,8 +89,9 @@ run;
 									upper=_threadid_*nObsPerThread + 1*min(nExtras,_threadid_);
 									do jkID = lower to upper;
 										do caseID = 1 to '|| r.numCases ||';
-											bag=1;
-											if jkID ne caseID then output;
+											if jkID ne caseID then bag=1;
+											else bag=0;
+											output;
 										end;
 									end;
 									drop nObsPerThread nExtras lower upper;
