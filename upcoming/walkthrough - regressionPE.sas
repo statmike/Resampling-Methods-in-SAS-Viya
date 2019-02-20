@@ -1,7 +1,7 @@
 /*
 unfinished and depricated
 REASON:
-	create percentilePE action
+	created percentilePE action
 		user can... model full, resample, model resamples, run percentilePE
 
 FUTURE: would be great if for any model building action you could save the output model action spec to rerun/refit on a new intable
