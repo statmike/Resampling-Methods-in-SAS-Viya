@@ -1,6 +1,6 @@
 /*
-An example of using the predicted values from each bootstrap sample, including the out-of-bag rows,
-to create confidence intervals for the predicted value as percentiles from the fitted bootstrap samples.
+An example of using the predicted values from each bootstrap resample, including the out-of-bag rows,
+to create confidence intervals for the predicted value as percentiles from the fitted bootstrap resamples.
 Based on example 2
 */
 cas mysess sessopts=(caslib='casuser');
@@ -86,7 +86,7 @@ proc cas;
 run;
 
 
-/* use the output predictions from fitting all the bootstrap samples to construct percentile intervals for the predictions: */
+/* use the output predictions from fitting all the bootstrap resamples to construct percentile intervals for the predictions: */
 proc cas;
 	/* select distinct bsID and caseID - this will get all the original rows of the dataset scored by including bag which has the out-of-bag values with bag=0 */
   fedsql.execDirect / query='create table sample_bs_pred {options replace=TRUE} as select distinct caseID, bsID, bag, pred, resid from sample_bs_pred';
