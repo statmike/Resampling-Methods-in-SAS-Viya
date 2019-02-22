@@ -26,9 +26,9 @@ As updates are made to the repository there are dependencies between files and f
 * Folder: [examples](./examples) contains examples of using the actions
   * [example 1 - loading and using bootstrap action from resample.sas](./examples/example%201%20-%20loading%20and%20using%20bootstrap%20action%20from%20resample.sas)
   * [example 2 - regression bootstrap parameter estimates.sas](./examples/example%202%20-%20regression%20bootstrap%20parameter%20estimates.sas)
-    * [example 2_1 - bootstrap confidence intervals for individual predictions.sas](example%202_1%20-%20bootstrap%20confidence%20intervals%20for%20individual%20predictions.sas)
+    * [example 2_1 - bootstrap confidence intervals for individual predictions.sas](./examples/example%202_1%20-%20bootstrap%20confidence%20intervals%20for%20individual%20predictions.sas)
   * [example 3 - regression double-bootstrap parameter estimates.sas](./examples/example%203%20-%20regression%20double%20bootstrap%20parameter%20estimates.sas)
-    * [example 3_1 - double-bootstrap confidence intervals for individual predictions.sas](example%203_1%20-%20double-bootstrap%20confidence%20intervals%20for%20individual%20predictions.sas)
+    * [example 3_1 - double-bootstrap confidence intervals for individual predictions.sas](./examples/example%203_1%20-%20double-bootstrap%20confidence%20intervals%20for%20individual%20predictions.sas)
   * [example 4 - regression jackknife parameter estimates.sas](./examples/example%204%20-%20regression%20jackknife%20parameter%20estimates.sas)
     * [example 4_1 - jackknife confidence intervals for individual predictions.sas](./examples/example%204_1%20-%20jackknife%20confidence%20intervals%20for%20individual%20predictions.sas)
   * [example 5 - using bootstrap results to diagnose influence with model fit.sas](./examples/example%205%20-%20using%20bootstrap%20results%20to%20diagnose%20influence%20with%20model%20fit.sas)
