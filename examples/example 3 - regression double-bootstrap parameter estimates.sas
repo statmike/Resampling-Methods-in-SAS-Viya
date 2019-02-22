@@ -78,11 +78,9 @@ proc cas;
 							}
 		 			},
          partByVar = {name="bag",train="1",test="0"},
-         outputTables = {names={'ParameterEstimates'="sample_BS_PE"}, groupByVarsRaw=TRUE, replace=TRUE},
-         output = {casOut={name='sample_bs_pred', replace=TRUE},
-         		   pred='Pred', resid='Resid', cooksd='CooksD', h='H',
-         		   copyVars={"bsID","bs_rowID","rowID","MSRP","bag"}};
+         outputTables = {names={'ParameterEstimates'="sample_BS_PE"}, groupByVarsRaw=TRUE, replace=TRUE};
 run;
+
 /* analyze/train each double-bootstrap resample with the same model effects selected on the full sample data */
 proc cas;
    glm result=myresult / table  = {name='sample_dbs', groupBy={'bsID','dbsID'}},
