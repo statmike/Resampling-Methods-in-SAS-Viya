@@ -136,6 +136,11 @@ proc sgplot data=sample_bs_pred_perc;
 	refline 0 / axis=x;
 run;
 
+title "Residual Plot";
+proc sgplot data=sample_bs_pred_perc;
+  scatter x=caseid y=resid_BS / markerattrs=(symbol=circlefilled size=6 color=red) legendlabel='Residual';
+  refline 0 / axis=y;
+run;
 title "Residual Plot with Bootstrap Intervals";
 proc sgplot data=sample_bs_pred_perc;
   scatter x=caseid y=resid_BS / yerrorlower=resid_BS_LowerCL yerrorupper=resid_BS_UpperCL markerattrs=(symbol=circlefilled size=6 color=red) legendlabel='Residual';

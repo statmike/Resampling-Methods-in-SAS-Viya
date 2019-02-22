@@ -139,6 +139,11 @@ proc sgplot data=sample_jk_pred_perc;
 	refline 0 / axis=x;
 run;
 
+title "Residual Plot";
+proc sgplot data=sample_jk_pred_perc;
+  scatter x=caseid y=resid_jk / markerattrs=(symbol=circlefilled size=6 color=red) legendlabel='Residual';
+  refline 0 / axis=y;
+run;
 title "Residual Plot with Jackknife Intervals";
 proc sgplot data=sample_jk_pred_perc;
   scatter x=caseid y=resid_jk / yerrorlower=resid_jk_LowerCL yerrorupper=resid_jk_UpperCL markerattrs=(symbol=circlefilled size=6 color=red) legendlabel='Residual';
