@@ -15,4 +15,14 @@ proc cas;
 	sccasl.runCasl result=temp / code=sf1 vars={x=4};
 run;
 
+proc cas;
+	source sf1;
+		outnum=innum*2;
+		print "this is the result of the source variable: " outnum;
+	endsource;
+
+	loadactionset / actionset="sccasl";
+	sccasl.runCasl result=temp / code=sf1 vars={innum=4};
+run;
+
 *cas mysess clear;
