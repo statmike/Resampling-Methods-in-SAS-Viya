@@ -45,3 +45,11 @@ run;
   			         output = {casOut={name='sample_pred', replace=TRUE},
   			         		   pred='Pred', resid='Resid', copyVars={"Status"}};
   			run;
+				data mylib.sample_pred; set mylib.sample_pred;
+					if pred>0.5 then Status_Pred='Alive';
+					else if pred>0 then Status_Pred='Dead';
+				run;
+
+				proc cas;
+					simple.crossTab / table={name="sample_pred"} row="Status" col="Status_Pred" aggregator="N";
+				run;
