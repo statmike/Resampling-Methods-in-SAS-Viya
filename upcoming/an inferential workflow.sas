@@ -249,22 +249,30 @@ data sample_bs_pred_perc;
 	set mylib.sample_bs_pred_perc;
 run;
 
-title "Bootstrap Confidence Intervals for Predictions";
-title2 "Cases where prediction is consistently inaccurate (residual >0.9)";
-title3 "Highly Inaccurate";
+title "Bootstrap Confidence Intervals for Individual Predictions";
+title2 "Cases where prediction is consistently highly inaccurate (residual >0.94)";
 proc sgplot data=sample_bs_pred_perc;
-	where resid_BS_LowerCL>0.9;
+	where resid_BS_LowerCL>0.94;
 	scatter y=caseid x=BS_Estimate / xerrorlower=BS_LowerCL xerrorupper=BS_UpperCL markerattrs=(symbol=circle size=9 color=red) legendlabel='Prediction';
 	scatter y=caseid x=resid_BS / xerrorlower=resid_BS_LowerCL xerrorupper=resid_BS_UpperCL markerattrs=(symbol=circlefilled size=6 color=green) legendlabel='Residual';
 	scatter y=caseid x=Status2 / legendlabel='Actual Value';
 	yaxis display=(nolabel);
 	refline 0.5 / axis=x;
 run;
+
+title "Bootstrap Confidence Intervals for Individual Predictions";
+title2 "Cases where prediction is consistently highly inaccurate (residual >0.94)";
+proc sgpanel data=sample_bs_pred_perc;
+	where resid_BS_LowerCL>0.94;
+	panelby status;
+	scatter y=caseid x=resid_BS / xerrorlower=resid_BS_LowerCL xerrorupper=resid_BS_UpperCL markerattrs=(symbol=circlefilled size=6 color=green) legendlabel='Residual';
+	refline 0.5 / axis=x;
+run;
+
 title "Residual Plot with 95% Bootstrap Intervals (percentile)";
-title2 "Cases where prediction is consistently inaccurate (residual >0.9)";
-title3 "Highly Inaccurate";
+title2 "Cases where prediction is consistently highly inaccurate (residual >0.94)";
 proc sgplot data=sample_bs_pred_perc;
-	where resid_BS_LowerCL>0.9;
+	where resid_BS_LowerCL>0.94;
 	scatter x=caseid y=resid_BS / yerrorlower=resid_BS_LowerCL yerrorupper=resid_BS_UpperCL markerattrs=(symbol=circlefilled size=6 color=red) legendlabel='Residual';
 	refline 0.5 / axis=y;
 run;
