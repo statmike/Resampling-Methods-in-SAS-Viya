@@ -14,7 +14,7 @@ proc logselect data=mylib.sample;
 	selection method=stepwise;
 run;
 
-/* model - select effects with forwardswap, consider 2-way interactions, include poly(2)  */
+/* model - select effects with stepwise, consider 2-way interactions, include some poly(2)  */
 proc cas;
    loadactionset / actionset='regression';
    logistic / table  = {name='sample'},
@@ -23,7 +23,9 @@ proc cas;
 					clb=TRUE,
 		 			target = 'Status'
 		 			effects = {
-								{vars={'Sex','Chol_Status','BP_Status','Weight_Status','Smoking_Status','AgeAtStart','Height','Weight','Diastolic','Systolic','MRW','Smoking','Cholesterol','AgeAtStart','Height','Weight','Diastolic','Systolic','MRW','Smoking','Cholesterol'},interaction='BAR',maxinteract=2}
+								{vars={'Sex','Chol_Status','BP_Status','Weight_Status','Smoking_Status',
+												'AgeAtStart','Height','Weight','Diastolic','Systolic','MRW','Smoking','Cholesterol',
+												'AgeAtStart','Height','Weight','Diastolic','Systolic','MRW','Smoking','Cholesterol'},interaction='BAR',maxinteract=2}
 							}
 		 			},
          selection = 'STEPWISE';
@@ -277,7 +279,14 @@ proc sgplot data=sample_bs_pred_perc;
 	refline 0.5 / axis=y;
 run;
 
-
+title "Residual Plot with 95% Bootstrap Intervals (percentile)";
+title2 "Cases where prediction is consistently highly inaccurate (residual >0.94)";
+proc sgpanel data=sample_bs_pred_perc;
+	where resid_BS_LowerCL>0.94;
+	panelby status;
+	scatter x=caseid y=resid_BS / yerrorlower=resid_BS_LowerCL yerrorupper=resid_BS_UpperCL markerattrs=(symbol=circlefilled size=6 color=red) legendlabel='Residual';
+	refline 0.5 / axis=y;
+run;
 
 
 
