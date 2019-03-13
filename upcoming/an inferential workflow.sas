@@ -251,6 +251,8 @@ data sample_bs_pred_perc;
 	set mylib.sample_bs_pred_perc;
 run;
 
+ods graphics / imagemap;
+
 title "Bootstrap Confidence Intervals for Individual Predictions";
 title2 "Cases where prediction is consistently highly inaccurate (residual >0.94)";
 proc sgpanel data=sample_bs_pred_perc;
