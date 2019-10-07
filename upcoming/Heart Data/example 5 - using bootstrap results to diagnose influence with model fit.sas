@@ -122,4 +122,31 @@ proc cas;
 		*table.fetch / table={name='SAMPLE_BS_INFLUENCE_MODEL_RMSE'}, from=1, to=16384, sortBy={{name='_NodeID_', order='ASCENDING'}};
 run;
 
+/*
+proc forest data=mylib.sample isolation seed=12345;
+	input weight enginesize horsepower wheelbase mpg_highway / level=interval;
+	input origin drivetrain / level=nominal;
+	target MSRP / level=interval;
+	id caseid;
+	output out=mylib.sample_score copyvars=(_ALL_);
+run;
+proc cas;
+	history{first=-10};
+run;
+*/
+
+proc cas;
+loadActionSet / actionSet='decisionTree';
+decisionTree.forestTrain / table={name='SAMPLE'},
+	target='MSRP',
+	inputs={{name='Weight'}, {name='EngineSize'}, {name='Horsepower'}, {name='Wheelbase'}, {name='MPG_Highway'}, {name='Origin'}, {name='DriveTrain'}},
+	nominals={{name='Origin'}, {name='DriveTrain'}},
+	nBins=100, maxLevel=10, maxBranch=2, leafSize=1, missing='USEINSEARCH',
+  vote='PROB', minUseInSearch=1, binOrder=true, varImp=true,
+	casOut={name='SAMPLE_SCORE', replace=true},
+	mergeBin=true, isolation=true, encodeName=true, nTree=100, seed=12345, oob=true;
+run;
+
+
+
 *cas mysess clear;
