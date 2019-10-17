@@ -43,6 +43,7 @@ proc cas;
 		Bpct=1; /* The percentage of the original samples rowsize to use as the resamples size 1=100% */
 		Dpct=1; /* The percentage of the original samples rowsize to use as the resamples (DoubleBootstrap) size 1=100% */
 		case='unique_case'; /* if the value is a column in intable then uses unique values of that column as cases, otherwise will use rows of intable as cases */
+		strata='Make'; /* if the value is a column in intable then uses unique values of that column as by levels, otherwise will bootstrap the full intable */
 run;
 
 		/* check to see if resample.bootstrap has already been run

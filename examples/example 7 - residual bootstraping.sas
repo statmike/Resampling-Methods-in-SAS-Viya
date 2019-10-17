@@ -76,7 +76,7 @@ run;
 /* create bootstrap resamples */
 proc cas;
 	*builtins.actionSetFromTable / table={caslib="Public" name="resampleActionSet.sashdat"} name="resample";
-	resample.bootstrap / intable='sample_pred_resid' B=100 seed=12345 Bpct=1 case='unique_case';
+	resample.bootstrap / intable='sample_pred_resid' B=100 seed=12345 Bpct=1 case='unique_case' strata='none';
 run;
 
 /***************************************************************************************************************************/

@@ -20,7 +20,7 @@ proc casutil;
 		load data=sashelp.cars casout="sample" replace; /* n=428 */
 run;
 proc cas;
-		cases='NO';
+		cases='YES';
 		multipleRows='NO';
 		if cases='YES' then do;
 			resample.addRowID / intable='sample';
@@ -37,73 +37,125 @@ run;
 /* define parameters to hold the action inputs */
 proc cas;
 	  intable='sample';
-		B=100; /* desired number of resamples, used to reset value of bss to achieve at least B resamples */
+		B=1000; /* desired number of resamples, used to reset value of bss to achieve at least B resamples */
 		seed=12345; /* seed for call streaminit(seed) in the sampling */
-		Bpct=1; /* The percentage of the original samples rowsize to use as the resamples size 1=100% */
+		Bpct=.8; /* The percentage of the original samples rowsize to use as the resamples size 1=100% */
 		case='unique_case'; /* if the value is a column in intable then uses unique values of that column as cases, otherwise will use rows of intable as cases */
+		strata='Make'; /* if the value is a column in intable then uses unique values of that column as by levels, otherwise will bootstrap the full intable */
 run;
 
 		/* workflow: if case is a column in intable then do first route, otherwise do second route (else) */
 		table.columninfo result=i / table=intable;
 				/* if a column caseID is present then drop it - protected term, may be leftover from previous run */
 				if i.columninfo.where(upcase(Column)='CASEID').nrows=1 then do;
-					alterTable / name=intable columns={{name='caseID', drop=TRUE}};
+						alterTable / name=intable columns={{name='caseID', drop=TRUE}};
 				end;
-				/* first route: case is a column in intable */
+				/* first route: case= is a column in intable */
 				if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
-						/* make a one column table of unique cases */
-						fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||' from '|| intable;
-						/* addRowID to the unique cases, then rename rowID to caseID */
-						resample.addRowID / intable=intable||'_cases';
-							alterTable / name=intable||'_cases' columns={{name='rowID',rename='caseID'}};
-						/* store the row count from the cases for further calculations */
-						simple.numRows result=r / table=intable||'_cases';
-						/* merge the caseID into the intable */
-						fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
-																					select * From
-																						(select * from '|| intable ||'_cases) a
-																						left outer join
-																						(select * from '|| intable ||') b
-																						using('|| CASE ||')';
-						/* drop the table of unique cases: size is in r.numrows, values are merged into intable */
-						dropTable name=intable||'_cases';
+						/* strata= is a column in intable so stratify sampling */
+						if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+								/* make a one column table of unique cases & strata levels */
+								fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||', '|| STRATA ||' from '|| intable;
+								/* number rows for each level of strata= starting with 1 for each */
+								datastep.runcode result=t / code='data '|| intable ||'_cases; set '|| intable ||'_cases; by '|| strata ||'; retain caseID; if first.'|| strata ||' then caseID=1; else caseID+1; run;';
+								/* store the row count from the cases for further calculations */
+								simple.numRows result=r / table=intable||'_cases';
+								/* store the row count for each strata level for further calculations */
+								simple.freq result=rs / inputs=strata table=intable||'_cases';
+								/* merge the caseID into the intable */
+								fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
+																							select * From
+																								(select * from '|| intable ||'_cases) a
+																								left outer join
+																								(select * from '|| intable ||') b
+																								using('|| CASE ||', '|| STRATA ||')';
+								/* drop the table of unique cases: size is in r.numrows, values are merged into intable */
+								dropTable name=intable||'_cases';
+						end;
+						/* strata= is not a column in intable */
+						else do;
+								/* make a one column table of unique cases */
+								fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||' from '|| intable;
+								/* addRowID to the unique cases, then rename rowID to caseID */
+								resample.addRowID / intable=intable||'_cases';
+									alterTable / name=intable||'_cases' columns={{name='rowID',rename='caseID'}};
+								/* store the row count from the cases for further calculations */
+								simple.numRows result=r / table=intable||'_cases';
+								/* merge the caseID into the intable */
+								fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
+																							select * From
+																								(select * from '|| intable ||'_cases) a
+																								left outer join
+																								(select * from '|| intable ||') b
+																								using('|| CASE ||')';
+								/* drop the table of unique cases: size is in r.numrows, values are merged into intable */
+								dropTable name=intable||'_cases';
+						end;
 				end;
-				/* second route: case is not a column in intable */
+				/* second route: case= is not a column in intable */
 				else do;
-						/* addRowID to intable since rows are unique cases, then rename rowID to caseID */
-						resample.addRowID / intable=intable;
-							alterTable / name=intable columns={{name='rowID',rename='caseID'}};
-						/* store the row count from the cases for further calculations */
-						simple.numRows result=r / table=intable;
+						/* strata= is a column in intable so stratify sampling */
+						if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+								/* number rows for each level of strata= starting with 1 for each */
+								datastep.runcode result=t / code='data '|| intable ||'; set '|| intable ||'; by '|| strata ||'; retain caseID; if first.'|| strata ||' then caseID=1; else caseID+1; run;';
+								/* store the row count from the cases for further calculations */
+								simple.numRows result=r / table=intable;
+								/* store the row count for each strata level for further calculations */
+								simple.freq result=rs / inputs=strata table=intable;
+						end;
+						/* strata= is not a column in intable */
+						else do;
+								/* addRowID to intable since rows are unique cases, then rename rowID to caseID */
+								resample.addRowID / intable=intable;
+									alterTable / name=intable columns={{name='rowID',rename='caseID'}};
+								/* store the row count from the cases for further calculations */
+								simple.numRows result=r / table=intable;
+						end;
 				end;
 run;
 
-		/* store the size of the original sample data (cases) in r.numCases */
-		r.numCases=r.numrows;
-		/* set r.Bpctn to the fraction of the original sample tables case size to be resampled for for each bootstrap resample */
-		r.Bpctn=CEIL(r.numCases*Bpct);
+/* setup parameters for boostrap structure then create the structure */
 		/* If user specifies desired number of resamples B then reset bss to achieve atleast B resamples */
 		datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
 				fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
 				dropTable name='tempholdb';
 				bss=ceil(B/q[1,1].M);
+		/* strata= is a column in intable so stratify sampling */
+		if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+				rs.frequency=rs.frequency.compute({"Bpctn","Bpctn"},CEIL(Frequency*Bpct));
+				/* create a structure for the bootstrap sampling.
+							Will make resamples equal to the size of the original tables cases
+							these instructions are sent to each _threadid_ and replicated bss times */
+						dscode='data '|| intable || '_bskey; call streaminit('|| seed ||'); do bs = 1 to '|| bss || '; bsID = (_threadid_-1)*'|| bss ||' + bs;';
+							do row over rs.frequency;
+								dscode=dscode||strata||'='''|| trim(row.FmtVar) ||'''; do bs_caseID = 1 to '|| row.Bpctn ||'; caseID=int(1+'|| row.Frequency ||'*rand(''Uniform'')); bag=1; output; end;';
+							end;
+							dscode=dscode||'end; drop bs; run;';
+						datastep.runcode result=t / code=dscode;
+		end;
+		/* strata= is not a column in intable */
+		else do;
+				/* store the size of the original sample data (cases) in r.numCases */
+				r.numCases=r.numrows;
+				/* set r.Bpctn to the fraction of the original sample tables case size to be resampled for for each bootstrap resample */
+				r.Bpctn=CEIL(r.numCases*Bpct);
+				/* create a structure for the bootstrap sampling.
+							Will make resamples equal to the size of the original tables cases
+							these instructions are sent to each _threadid_ and replicated bss times */
+						datastep.runcode result=t / code='data '|| intable ||'_bskey;
+													call streaminit('|| seed ||');
+													do bs = 1 to '|| bss ||';
+														bsID = (_threadid_-1)*'|| bss ||' + bs;
+														do bs_caseID = 1 to '|| r.Bpctn ||';
+															caseID = int(1+'|| r.numCases ||'*rand(''Uniform''));
+															bag=1;
+															output;
+														end;
+													end;
+													drop bs;
+												 run;';
+		end;
 run;
-
-		/* create a structure for the bootstrap sampling.
-					Will make resamples equal to the size of the original tables cases
-					these instructions are sent to each _threadid_ and replicated bss times */
-		datastep.runcode result=t / code='data '|| intable ||'_bskey;
-									call streaminit('|| seed ||');
-									do bs = 1 to '|| bss ||';
-										bsID = (_threadid_-1)*'|| bss ||' + bs;
-										do bs_caseID = 1 to '|| r.Bpctn ||';
-											caseID = int(1+'|| r.numCases ||'*rand(''Uniform''));
-											bag=1;
-											output;
-										end;
-									end;
-									drop bs;
-								 run;';
 
 		/*  take a look at how the table is distributed in the CAS environment */
 		datastep.runcode result=t / code='data '||intable||'_bskey; set '||intable||'_bskey; host=_hostname_; threadid=_threadid_; run;';
@@ -111,20 +163,41 @@ run;
 		simple.crossTab / table={name=intable||"_bskey" where="bag=1"} row="bsid" col="threadid" aggregator="N";
 run;
 
-		/* use some fancy sql to merge the bootstrap structure with the sample data
-					and include the rows not resampled with bag=0
-					(see walkthrough of this SQL at the bottom of this file)*/
-		fedSql.execDirect / query='create table '|| intable ||'_bs {options replace=TRUE} as
-										select * from
-											(select b.bsID, b.caseID, c.bs_caseID, CASE when c.bag is null then 0 else c.bag END as bag from
-												(select bsID, caseID from
-													(select distinct bsID from '|| intable ||'_bskey) as a, (select distinct caseID from '|| intable ||') as a2) as b
-												full join
-												(select bsID, bs_caseID, caseID, bag from '|| intable ||'_bskey) c
-												using (bsID, caseID)) d
-											left join
-											'|| intable ||'
-											using (caseID)';
+/* include strata in merge */
+		/* strata= is a column in intable so stratify sampling */
+		if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+				/* use some fancy sql to merge the bootstrap structure with the sample data
+							and include the rows not resampled with bag=0
+							(see walkthrough of this SQL at the bottom of this file)*/
+				fedSql.execDirect / query='create table '|| intable ||'_bs {options replace=TRUE} as
+												select * from
+													(select b.bsID, b.'|| strata ||', b.caseID, c.bs_caseID, CASE when c.bag is null then 0 else c.bag END as bag from
+														(select bsID, '|| strata ||', caseID from
+															(select distinct bsID from '|| intable ||'_bskey) as a, (select distinct '|| strata ||', caseID from '|| intable ||') as a2) as b
+														full join
+														(select bsID, '|| strata ||', bs_caseID, caseID, bag from '|| intable ||'_bskey) c
+														using (bsID, '|| strata ||', caseID)) d
+													left join
+													'|| intable ||'
+													using ('|| strata ||', caseID)';
+		end;
+		/* strata= is not a column in intable */
+		else do;
+				/* use some fancy sql to merge the bootstrap structure with the sample data
+							and include the rows not resampled with bag=0
+							(see walkthrough of this SQL at the bottom of this file)*/
+				fedSql.execDirect / query='create table '|| intable ||'_bs {options replace=TRUE} as
+												select * from
+													(select b.bsID, b.caseID, c.bs_caseID, CASE when c.bag is null then 0 else c.bag END as bag from
+														(select bsID, caseID from
+															(select distinct bsID from '|| intable ||'_bskey) as a, (select distinct caseID from '|| intable ||') as a2) as b
+														full join
+														(select bsID, bs_caseID, caseID, bag from '|| intable ||'_bskey) c
+														using (bsID, caseID)) d
+													left join
+													'|| intable ||'
+													using (caseID)';
+		end;
 run;
 
 		/*  take a look at how the table is distributed in the CAS environment */

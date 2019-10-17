@@ -44,60 +44,109 @@ proc cas;
 					{name="B", type="INT", required=TRUE},
 					{name="seed", type="INT", required=TRUE},
 					{name="Bpct", type="DOUBLE", required=TRUE},
-					{name="Case", type="STRING", required=TRUE}
+					{name="Case", type="STRING", required=TRUE},
+					{name="Strata", type="STRING", required=TRUE}
 				}
 				definition = "
 							table.columninfo result=i / table=intable;
 									if i.columninfo.where(upcase(Column)='CASEID').nrows=1 then do;
-										alterTable / name=intable columns={{name='caseID', drop=TRUE}};
+											alterTable / name=intable columns={{name='caseID', drop=TRUE}};
 									end;
 									if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
-											fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||' from '|| intable;
-											resample.addRowID / intable=intable||'_cases';
-												alterTable / name=intable||'_cases' columns={{name='rowID',rename='caseID'}};
-											simple.numRows result=r / table=intable||'_cases';
-											fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
-																										select * From
-																											(select * from '|| intable ||'_cases) a
-																											left outer join
-																											(select * from '|| intable ||') b
-																											using('|| CASE ||')';
-											dropTable name=intable||'_cases';
+											if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+													fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||', '|| STRATA ||' from '|| intable;
+													datastep.runcode result=t / code='data '|| intable ||'_cases; set '|| intable ||'_cases; by '|| strata ||'; retain caseID; if first.'|| strata ||' then caseID=1; else caseID+1; run;';
+													simple.numRows result=r / table=intable||'_cases';
+													simple.freq result=rs / inputs=strata table=intable||'_cases';
+													fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
+																												select * From
+																													(select * from '|| intable ||'_cases) a
+																													left outer join
+																													(select * from '|| intable ||') b
+																													using('|| CASE ||', '|| STRATA ||')';
+													dropTable name=intable||'_cases';
+											end;
+											else do;
+													fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||' from '|| intable;
+													resample.addRowID / intable=intable||'_cases';
+														alterTable / name=intable||'_cases' columns={{name='rowID',rename='caseID'}};
+													simple.numRows result=r / table=intable||'_cases';
+													fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
+																												select * From
+																													(select * from '|| intable ||'_cases) a
+																													left outer join
+																													(select * from '|| intable ||') b
+																													using('|| CASE ||')';
+													dropTable name=intable||'_cases';
+											end;
 									end;
 									else do;
-											resample.addRowID / intable=intable;
-												alterTable / name=intable columns={{name='rowID',rename='caseID'}};
-											simple.numRows result=r / table=intable;
+											if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+													datastep.runcode result=t / code='data '|| intable ||'; set '|| intable ||'; by '|| strata ||'; retain caseID; if first.'|| strata ||' then caseID=1; else caseID+1; run;';
+													simple.numRows result=r / table=intable;
+													simple.freq result=rs / inputs=strata table=intable;
+											end;
+											else do;
+													resample.addRowID / intable=intable;
+														alterTable / name=intable columns={{name='rowID',rename='caseID'}};
+													simple.numRows result=r / table=intable;
+											end;
 									end;
-							r.numCases=r.numrows;
-							r.Bpctn=CEIL(r.numCases*Bpct);
 							datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
 									fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
 									dropTable name='tempholdb';
 									bss=ceil(B/q[1,1].M);
-							datastep.runcode result=t / code='data '|| intable ||'_bskey;
-														call streaminit('|| seed ||');
-														do bs = 1 to '|| bss ||';
-															bsID = (_threadid_-1)*'|| bss ||' + bs;
-															do bs_caseID = 1 to '|| r.Bpctn ||';
-													 			caseID = int(1+'|| r.numCases ||'*rand(''Uniform''));
-													 			bag=1;
-													 			output;
-															end;
-														end;
-														drop bs;
-													 run;';
-							fedSql.execDirect / query='create table '|| intable ||'_bs {options replace=TRUE} as
-															select * from
-																(select b.bsID, b.caseID, c.bs_caseID, CASE when c.bag is null then 0 else c.bag END as bag from
-																	(select bsID, caseID from
-																		(select distinct bsID from '|| intable ||'_bskey) as a, (select distinct caseID from '|| intable ||') as a2) as b
-																	full join
-																	(select bsID, bs_caseID, caseID, bag from '|| intable ||'_bskey) c
-																	using (bsID, caseID)) d
-																left join
-																'|| intable ||'
-																using (caseID)';
+							if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+									rs.frequency=rs.frequency.compute({"Bpctn","Bpctn"},CEIL(Frequency*Bpct));
+											dscode='data '|| intable || '_bskey; call streaminit('|| seed ||'); do bs = 1 to '|| bss || '; bsID = (_threadid_-1)*'|| bss ||' + bs;';
+												do row over rs.frequency;
+													dscode=dscode||strata||'='''|| trim(row.FmtVar) ||'''; do bs_caseID = 1 to '|| row.Bpctn ||'; caseID=int(1+'|| row.Frequency ||'*rand(''Uniform'')); bag=1; output; end;';
+												end;
+												dscode=dscode||'end; drop bs; run;';
+											datastep.runcode result=t / code=dscode;
+							end;
+							else do;
+									r.numCases=r.numrows;
+									r.Bpctn=CEIL(r.numCases*Bpct);
+											datastep.runcode result=t / code='data '|| intable ||'_bskey;
+																		call streaminit('|| seed ||');
+																		do bs = 1 to '|| bss ||';
+																			bsID = (_threadid_-1)*'|| bss ||' + bs;
+																			do bs_caseID = 1 to '|| r.Bpctn ||';
+																				caseID = int(1+'|| r.numCases ||'*rand(''Uniform''));
+																				bag=1;
+																				output;
+																			end;
+																		end;
+																		drop bs;
+																	 run;';
+							end;
+							if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+									fedSql.execDirect / query='create table '|| intable ||'_bs {options replace=TRUE} as
+																	select * from
+																		(select b.bsID, b.'|| strata ||', b.caseID, c.bs_caseID, CASE when c.bag is null then 0 else c.bag END as bag from
+																			(select bsID, '|| strata ||', caseID from
+																				(select distinct bsID from '|| intable ||'_bskey) as a, (select distinct '|| strata ||', caseID from '|| intable ||') as a2) as b
+																			full join
+																			(select bsID, '|| strata ||', bs_caseID, caseID, bag from '|| intable ||'_bskey) c
+																			using (bsID, '|| strata ||', caseID)) d
+																		left join
+																		'|| intable ||'
+																		using ('|| strata ||', caseID)';
+							end;
+							else do;
+									fedSql.execDirect / query='create table '|| intable ||'_bs {options replace=TRUE} as
+																	select * from
+																		(select b.bsID, b.caseID, c.bs_caseID, CASE when c.bag is null then 0 else c.bag END as bag from
+																			(select bsID, caseID from
+																				(select distinct bsID from '|| intable ||'_bskey) as a, (select distinct caseID from '|| intable ||') as a2) as b
+																			full join
+																			(select bsID, bs_caseID, caseID, bag from '|| intable ||'_bskey) c
+																			using (bsID, caseID)) d
+																		left join
+																		'|| intable ||'
+																		using (caseID)';
+							end;
 							dropTable name=intable||'_bskey';
 							partition / casout={name=intable||'_bs', replace=TRUE} table={name=intable||'_bs', groupby={{name='bsID'}}};
 							resp.bss=bss;

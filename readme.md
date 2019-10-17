@@ -1,3 +1,11 @@
+# TODO
+- [ ] update example for bootstrap calls - add strata=.  also within doublebootstrap...
+- [ ] update doubleBootstrap action with strata and calls to bootstrap
+- [ ] update doubleBootstrap documentation below with strata calls
+- [ ] update relationship map to include strata (optional)
+- [ ] update doubleBootstrap example with strata parameter
+- [ ] make an animated chart of stratified bootstrap
+
 # Resampling Methods in the SAS Viya CAS Engine
 This repository contains code, walkthroughs, examples, and applications of bootstrap methods.  It utilizes the computing infrastructure of SAS Viya's CAS engine.  This allows distributed computation of bootstrap iterations in parallel with very minimal code!
 
@@ -89,7 +97,7 @@ This is a reference chart for the relationship between the actions and their out
 
 resample.addRowID|resample.bootstrap|resample.doubleBootstrap|resample.jackknife|resample.percentilePE
 -----|-----|-----|-----|-----
-resample.addRowID /<br/>intable="sample";<br/><br/><br/><br/><br/><br/><br/>|resample.bootstrap /<br/>intable="sample"<br/>case="unique_case"<br/>Seed=12345<br/>B=100<br/>Bpct=1;<br/><br/><br/>|resample.doubleBootstrap /<br/>intable="sample"<br/>case="unique_case"<br/>Seed=12345<br/>B=100<br/>Bpct=1<br/>D=50<br/>Dpct=1;|resample.jackknife /<br/>intable="sample"<br/>case="unique_case";<br/><br/><br/><br/><br/><br/>|resample.percentilePE /<br/>intable="sample"<br/>alpha=0.05;<br/><br/><br/><br/><br/><br/>
+resample.addRowID /<br/>intable="sample";<br/><br/><br/><br/><br/><br/><br/>|resample.bootstrap /<br/>intable="sample"<br/>case="unique_case"<br/>strata="strata"<br/>Seed=12345<br/>B=100<br/>Bpct=1;<br/><br/>|resample.doubleBootstrap /<br/>intable="sample"<br/>case="unique_case"<br/>Seed=12345<br/>B=100<br/>Bpct=1<br/>D=50<br/>Dpct=1;|resample.jackknife /<br/>intable="sample"<br/>case="unique_case";<br/><br/><br/><br/><br/><br/>|resample.percentilePE /<br/>intable="sample"<br/>alpha=0.05;<br/><br/><br/><br/><br/><br/>
 
 
 ### resample.addRowID action
@@ -113,6 +121,7 @@ Parameter Descriptions
 Creates a table of bootstrap resamples from table `<intable>` and stores them in a table named `<intable>_bs`.  Runs the addRowID action on the `<intable>` cases.  Columns that describe the link between the bootstrap resamples and the original sample are:
 * bsID - is the naturally numbered (1, 2, ..., b) identifier of a resample
 * bs_caseID - is the naturally numbered (1, 2, ..., n) case identifier within the value of bsID
+* strata (if strata= is a column in `<intable>`) - defines a subgroup (by group) in `<intable>` for which caseID numbering is unique.  Each strata levels starts over at caseID=1.
 * caseID - is the naturally numbered (1, 2, ..., n) case identifier for the resampled case in `<intable>`
 * bag - is 1 for resampled case, 0 for caseID values not resampled within the bsID (will have missing for bs_caseID)
 
@@ -122,6 +131,7 @@ CASL Syntax
     resample.bootstrap /
       intable="string"
       case="string"
+      strata="string"
       B=integer
       Bpct=double
       seed=integer
@@ -134,6 +144,9 @@ Parameter Descriptions
     case="string"
       required
       Specifies the name of the column from `<intable>` that connects groupings of rows that make up cases.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling.
+    strata="string"
+      required
+      Specifies the name of the column from `<intable>` that is used to partition or group the rows before resampling.  Resampling will happen independently within each level of the strata variable and the Bpct= parameter will apply separately to each strata level.  This essentially acts as a by variable for resampling.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling (non-stratified).
     B=integer
       required
       Specifies the desired number of bootstrap resamples.  
