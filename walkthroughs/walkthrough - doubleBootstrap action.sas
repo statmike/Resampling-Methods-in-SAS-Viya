@@ -51,7 +51,7 @@ run;
 		table.tableExists result=c / name=intable||'_bs';
 				/* if intable_bs does not exists then run the resample.bootstrap action to create it */
 				if c.exists==0 then do;
-					bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct Case=Case;
+					resample.bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct Case=Case Strata=Strata;
 				end;
 run;
 

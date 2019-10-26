@@ -1,8 +1,8 @@
 # TODO
+- [ ] add external bootstrap values including strata values for resampling: external=no, int, table 
 - [ ] update example for bootstrap calls - add strata=.  also within doublebootstrap...
 - [ ] update doubleBootstrap action with strata and calls to bootstrap
 - [ ] update doubleBootstrap documentation below with strata calls
-- [ ] update relationship map to include strata (optional)
 - [ ] update doubleBootstrap example with strata parameter
 - [ ] make an animated chart of stratified bootstrap
 
@@ -15,7 +15,9 @@ When our sample is limited (when isn't it?) and we want to understand parameter 
 For an acknowledgement of the importance of the bootstrap, a great place to start is the writeup for it's inventor being awarded the [International Prize in Statistics](http://statprize.org).  Thank you Professor Efron for putting a computer on the desk (now, the cloud) of every statistician.
 
 ### Notes about code
-All code is written in SAS CASL which can be executed from a SAS interface with PROC CAS or from the various (Python, R, REST,...) API's.  As of SAS Viya version 3.4 there is not a packaged bootstrap action.  This repository has a user defined action set and instructions for loading it in your environment.  This also makes a great example of how to easily extend the capabilities of SAS Viya and share with all users in your environment.
+All code is written in SAS CASL which can be executed from a SAS interface with PROC CAS or from the various (Python, R, REST,...) API's.  As of SAS Viya version 3.4 there is not a packaged bootstrap action.  There is an included [Sampling And Partitioning Action Set](https://documentation.sas.com/?cdcId=pgmsascdc&cdcVersion=9.4_3.4&docsetId=casactstat&docsetTarget=casactstat_sampling_toc.htm&locale=en) but it does not have options for sampling with replacement.
+
+This repository has a user defined action set and instructions for loading it in your environment.  This also makes a great example of how to easily extend the capabilities of SAS Viya and share with all users in your environment.
 
 ### Contribute
 Have something to add?  Just fork it, change it, and create a pull request!
@@ -121,8 +123,8 @@ Parameter Descriptions
 Creates a table of bootstrap resamples from table `<intable>` and stores them in a table named `<intable>_bs`.  Runs the addRowID action on the `<intable>` cases.  Columns that describe the link between the bootstrap resamples and the original sample are:
 * bsID - is the naturally numbered (1, 2, ..., b) identifier of a resample
 * bs_caseID - is the naturally numbered (1, 2, ..., n) case identifier within the value of bsID
-* strata (if strata= is a column in `<intable>`) - defines a subgroup (by group) in `<intable>` for which caseID numbering is unique.  Each strata levels starts over at caseID=1.
-* caseID - is the naturally numbered (1, 2, ..., n) case identifier for the resampled case in `<intable>`
+* caseID - is the naturally numbered (1, 2, ..., n) case identifier for the resampled case in `<intable>` - see strata
+  * strata (if strata= is a column in `<intable>`) - defines a subgroup (by group) in `<intable>` for which caseID numbering is unique.  Each strata levels starts over at caseID=1 and has decimal value representing the unique strata levels: 1.01, 2.01, 3.01 are all for the same strata level (.01) while 1.02, 2.02, 3.02 are all for strata level (.02).
 * bag - is 1 for resampled case, 0 for caseID values not resampled within the bsID (will have missing for bs_caseID)
 
 ```
