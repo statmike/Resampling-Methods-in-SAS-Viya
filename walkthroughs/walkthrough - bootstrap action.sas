@@ -41,9 +41,10 @@ quit;
 proc sql;
 	create table sample_strata as
 		select count(*) as strata_n, type
-		from sashelp.cars
+		from sashelp.cars where type ne 'Sedan'
 		group by type;
 run;
+
 proc casutil;
 		load data=sashelp.cars casout="sample" replace; /* n=428 */
 		load data=sample_strata casout="sample_strata" replace;
@@ -81,17 +82,18 @@ run;
 				if i.columninfo.where(upcase(Column)='CASEID').nrows=1 then do;
 						alterTable / name=intable columns={{name='caseID', drop=TRUE}};
 				end;
+
 				/* RECONCILE STRATA INFORMATION */
 				if i.columninfo.where(upcase(Column)=upcase(STRATA)).nrows=1 then do;
 					if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
 							fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as
-																						select distinct '|| STRATA ||', count(*) as strata_n from '||
-																						'(select distinct '|| CASE ||', '|| STRATA ||' from ' || intable ||')'
+																						select distinct '|| STRATA ||', count(*) as strata_n, '''' as strata_dist from '||
+																						'(select distinct '|| CASE ||', '|| STRATA ||' from ' || intable ||') as a'
 																						||' group by '|| STRATA;
 					end;
 					else do;
 						fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as
-																					select distinct '|| STRATA ||', count(*) as strata_n from '||
+																					select distinct '|| STRATA ||', count(*) as strata_n, '''' as strata_dist from '||
 																					intable
 																					||' group by '|| STRATA;
 					end;
@@ -108,7 +110,7 @@ run;
 									end;
 									else do;
 										fedsql.execDirect r=rs / query='create table internalstrata_info {options replace=TRUE} as
-																									select a.strata, CASE when b.strata_n is not null then b.strata_n else a.strata_n END as strata_n, null as strata_dist from
+																									select a.strata, CASE when b.strata_n is not null then b.strata_n else a.strata_n END as strata_n, a.strata_dist from
 																											(select * from internalstrata_info as a
 																											left outer join
 																											select * from strata_table b as b
