@@ -1,5 +1,27 @@
 /* a step by step walkthrough of the bootstrap action in the resample actionset
   link to wiki:
+
+Overview:
+	if case is a column then sample these as units
+	if strata is a column then sample units within each strata level separately
+
+	1 - Add CaseID to intable
+		If case in intable
+			if strata in intable
+				intable.caseID is 1.s where s is a decimal representation of the strata row numbers
+					r has number of cases in intable
+					rs has info per strata level
+			if strata not in intable
+				intable.caseID is 1,2,3,... for cases
+					r has number of cases in intable
+		If case not in intable
+			if strata in intable
+			 	intable.caseID is 1.s where s is a decimal representation of the strata row numbers
+					r has number of rows/cases in intable
+					rs has infor per strata level
+			if strata not in intable
+				intable.caseID is rownumber as rows are cases
+					r has number of rows/cases in intable
 */
 
 /* setup a session - in SAS Studio use interactive mode for this walkthrough */
@@ -16,8 +38,15 @@ quit;
 		if rows are cases and unique_case is a column holding identifier then: cases=YES and multipleRows=NO
 		if multiple rows per cases then need a column, unique_case, to hold identifier: cases=YES and multipleRows=YES
 */
+proc sql;
+	create table sample_strata as
+		select count(*) as strata_n, type
+		from sashelp.cars
+		group by type;
+run;
 proc casutil;
 		load data=sashelp.cars casout="sample" replace; /* n=428 */
+		load data=sample_strata casout="sample_strata" replace;
 run;
 proc cas;
 		cases='YES';
@@ -41,15 +70,53 @@ proc cas;
 		seed=12345; /* seed for call streaminit(seed) in the sampling */
 		Bpct=.8; /* The percentage of the original samples rowsize to use as the resamples size 1=100% */
 		case='unique_case'; /* if the value is a column in intable then uses unique values of that column as cases, otherwise will use rows of intable as cases */
-		strata='Make'; /* if the value is a column in intable then uses unique values of that column as by levels, otherwise will bootstrap the full intable */
+		strata='Type'; /* if the value is a column in intable then uses unique values of that column as by levels, otherwise will bootstrap the full intable */
+		strata_table='sample_strata';
 run;
 
+/* 1 - ADD caseID TO INTABLE */
 		/* workflow: if case is a column in intable then do first route, otherwise do second route (else) */
 		table.columninfo result=i / table=intable;
 				/* if a column caseID is present then drop it - protected term, may be leftover from previous run */
 				if i.columninfo.where(upcase(Column)='CASEID').nrows=1 then do;
 						alterTable / name=intable columns={{name='caseID', drop=TRUE}};
 				end;
+				/* RECONCILE STRATA INFORMATION */
+				if i.columninfo.where(upcase(Column)=upcase(STRATA)).nrows=1 then do;
+					if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
+							fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as
+																						select distinct '|| STRATA ||', count(*) as strata_n from '||
+																						'(select distinct '|| CASE ||', '|| STRATA ||' from ' || intable ||')'
+																						||' group by '|| STRATA;
+					end;
+					else do;
+						fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as
+																					select distinct '|| STRATA ||', count(*) as strata_n from '||
+																					intable
+																					||' group by '|| STRATA;
+					end;
+					table.tableExists result=es / name=strata_table;
+							table.columninfo result=s / table=strata_table;
+							if es.exists==0 then do;
+									if s.columninfo.where(upcase(column)=upcase('STRATA_DIST')).nrows=1 then do;
+											fedsql.execDirect r=rs / query='create table internalstrata_info {options replace=TRUE} as
+																										select a.strata, CASE when b.strata_n is not null then b.strata_n else a.strata_n END as strata_n, b.strata_dist from
+																												(select * from internalstrata_info as a
+																												left outer join
+																												select * from strata_table b as b
+																												using(strata))';
+									end;
+									else do;
+										fedsql.execDirect r=rs / query='create table internalstrata_info {options replace=TRUE} as
+																									select a.strata, CASE when b.strata_n is not null then b.strata_n else a.strata_n END as strata_n, null as strata_dist from
+																											(select * from internalstrata_info as a
+																											left outer join
+																											select * from strata_table b as b
+																											using(strata))';
+									end;
+							end;
+				end;
+
 				/* first route: case= is a column in intable */
 				if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
 						/* strata= is a column in intable so stratify sampling */
@@ -137,6 +204,7 @@ run;
 				end;
 run;
 
+/* 2 - CREATE BOOTSTRAP STRUCTURE */
 /* setup parameters for boostrap structure then create the structure */
 		/* If user specifies desired number of resamples B then reset bss to achieve atleast B resamples */
 		datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
@@ -186,6 +254,7 @@ run;
 		simple.crossTab / table={name=intable||"_bskey" where="bag=1"} row="bsid" col="threadid" aggregator="N";
 run;
 
+/* 3 - MERGE INTABLE WITH BOOTSTRAP STRUCTURE */
 		/* use some fancy sql to merge the bootstrap structure with the sample data
 					and include the rows not resampled with bag=0
 					(see walkthrough of this SQL at the bottom of this file)*/
@@ -224,8 +293,10 @@ run;
 run;
 
 		/* allow the action to have a response value, in this case the value of bss stored in a variable named bss */
-		*resp.bss=bss;
-		*send_response(resp);
+		resp.bss=bss;
+		resp.totalcases=r;
+		resp.strata_info=rs;
+		send_response(resp);
 run;
 
 quit;

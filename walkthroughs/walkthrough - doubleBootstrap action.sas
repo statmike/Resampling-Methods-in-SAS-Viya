@@ -62,7 +62,7 @@ run;
 				fedsql.execDirect result=q2 / query='select max(nthreads) as nthreads from tempholdbss';
 				dropTable name='tempholdbss';
 				bss=q1[1,1].cbsid/q2[1,1].nthreads;
-				print bss;
+				*print bss;
 run;
 
 		/*  take a look at how the table is distributed in the CAS environment */
@@ -138,7 +138,7 @@ run;
 											using (bsID,bs_caseID)';
 run;
 
-		/* use some fancy sql to merge the bootstrap structure with the sample data
+		/* use some fancy sql to merge the double-bootstrap structure with the sample data
 					and include the unsampled rows with bag=0
 							note unsampled (bag=0) includes unsampled cases in bootstrap and double-bootstrap
 				a review of this sql can be found in the bootstrap action walkthrough */

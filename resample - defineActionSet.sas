@@ -156,6 +156,8 @@ proc cas;
 							dropTable name=intable||'_bskey';
 							partition / casout={name=intable||'_bs', replace=TRUE} table={name=intable||'_bs', groupby={{name='bsID'}}};
 							resp.bss=bss;
+							resp.totalcases=r;
+							resp.strata_info=rs;
 							send_response(resp);
 				"
 			}
@@ -169,13 +171,12 @@ proc cas;
 					{name="seed", type="INT", required=TRUE},
 					{name="Bpct", type="DOUBLE", required=TRUE},
 					{name="Dpct", type="DOUBLE", required=TRUE},
-					{name="Case", type="STRING", required=TRUE},
-					{name="Strata", type="STRING", required=TRUE}
+					{name="Case", type="STRING", required=TRUE}
 				}
 				definition = "
 							table.tableExists result=c / name=intable||'_bs';
 								if c.exists==0 then do;
-									bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct Case=Case Strata=Strata;
+									bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct Case=Case Strata='notacolumn';
 								end;
 							datastep.runcode result=t / code='data tempholdbss; set '|| intable || '_bs; threadid=_threadid_; nthreads=_nthreads_; run;';
 									fedsql.execDirect result=q1 / query='select count(*) as cbsid from (select distinct bsID from tempholdbss) a';
