@@ -44,49 +44,158 @@ proc cas;
 					{name="B", type="INT", required=TRUE},
 					{name="seed", type="INT", required=TRUE},
 					{name="Bpct", type="DOUBLE", required=TRUE},
-					{name="Case", type="STRING", required=TRUE}
+					{name="Case", type="STRING", required=TRUE},
+					{name="Strata", type="STRING", required=TRUE},
+					{name="strata_table", type="STRING", required=TRUE}
 				}
 				definition = "
 							table.columninfo result=i / table=intable;
 									if i.columninfo.where(upcase(Column)='CASEID').nrows=1 then do;
-										alterTable / name=intable columns={{name='caseID', drop=TRUE}};
+											alterTable / name=intable columns={{name='caseID', drop=TRUE}};
 									end;
-									if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
-											fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||' from '|| intable;
-											resample.addRowID / intable=intable||'_cases';
-												alterTable / name=intable||'_cases' columns={{name='rowID',rename='caseID'}};
-											simple.numRows result=r / table=intable||'_cases';
-											fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
-																										select * From
-																											(select * from '|| intable ||'_cases) a
-																											left outer join
-																											(select * from '|| intable ||') b
-																											using('|| CASE ||')';
-											dropTable name=intable||'_cases';
+
+									if i.columninfo.where(upcase(Column)=upcase(STRATA)).nrows=1 then do;
+											if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
+													fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||', '|| STRATA ||' from '|| intable;
+													fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as select distinct '|| STRATA ||', count(*) as strata_n_data, '''' as strata_dist from '|| intable ||'_cases group by '|| STRATA;
+											end;
+											else do;
+													fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as select distinct '|| STRATA ||', count(*) as strata_n_data, '''' as strata_dist from '|| intable ||' group by '|| STRATA;
+											end;
+											resample.addRowID / intable='internalstrata_info';
+													alterTable / name='internalstrata_info' columns={{name='rowID',rename='strataID'}};
+											table.tableExists result=es / name=strata_table;
+											if es.exists==1 then do;
+													table.columninfo result=s / table=strata_table;
+													if s.columninfo.where(upcase(column)=upcase('STRATA_DIST')).nrows=1 then do;
+															fedsql.execDirect r=rs / query='create table internalstrata_info {options replace=TRUE} as
+																														select a.'||strata||', a.strataID, a.strata_n_data, b.strata_n, b.strata_dist from
+																																(select * from internalstrata_info) as a
+																																left outer join
+																																(select * from '|| strata_table ||') as b
+																																using('||strata||')';
+													end;
+													else do;
+														fedsql.execDirect r=rs / query='create table internalstrata_info {options replace=TRUE} as
+																													select a.'||strata||', a.strataID, a.strata_n_data, b.strata_n, a.strata_dist from
+																															(select * from internalstrata_info) as a
+																															left outer join
+																															(select * from '|| strata_table ||') as b
+																															using('||strata||')';
+													end;
+											end;
+											simple.numRows result=t / table='internalstrata_info';
+											strata_div=10**((int64)(ceil(log10(t.numrows+1))));
 									end;
 									else do;
-											resample.addRowID / intable=intable;
-												alterTable / name=intable columns={{name='rowID',rename='caseID'}};
-											simple.numRows result=r / table=intable;
+											if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
+													fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||' from '|| intable;
+													resample.addRowID / intable=intable||'_cases';
+															alterTable / name=intable||'_cases' columns={{name='rowID',rename='caseID'}};
+													simple.numRows result=r / table=intable||'_cases';
+													numCases=r.numrows;
+													Bpctn=CEIL(numCases*Bpct);
+											end;
+											else do;
+													simple.numRows result=r / table=intable;
+													numCases=r.numRows;
+													Bpctn=CEIL(numCases*Bpct);
+											end;
 									end;
-							r.numCases=r.numrows;
-							r.Bpctn=CEIL(r.numCases*Bpct);
+
+									if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
+											if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+													fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||', '|| STRATA ||' from '|| intable;
+															fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select * from
+																														(select * from '|| intable ||'_cases) a
+																														left outer join
+																														(select '|| STRATA ||', strataID from internalstrata_info) b
+																														using('|| STRATA ||')';
+													datastep.runcode result=t / code='data '|| intable ||'_cases; set '|| intable ||'_cases; by '|| strata ||'; retain caseID; if first.'|| strata ||' then caseID=1+strataID/'|| strata_div ||'; else caseID+1; run;';
+													fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
+																												select * From
+																													(select '|| CASE ||', '|| STRATA ||', caseID from '|| intable ||'_cases) a
+																													left outer join
+																													(select * from '|| intable ||') b
+																													using('|| CASE ||', '|| STRATA ||')';
+													dropTable name=intable||'_cases';
+											end;
+											else do;
+													fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
+																												select * From
+																													(select * from '|| intable ||'_cases) a
+																													left outer join
+																													(select * from '|| intable ||') b
+																													using('|| CASE ||')';
+													dropTable name=intable||'_cases';
+											end;
+									end;
+									else do;
+											if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+													fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as select * from
+																												(select * from '|| intable ||') a
+																												left outer join
+																												(select '|| STRATA ||', strataID from internalstrata_info) b
+																												using('|| STRATA ||')';
+													datastep.runcode result=t / code='data '|| intable ||'; set '|| intable ||'; by '|| strata ||'; retain caseID; if first.'|| strata ||' then caseID=1+strataID/'|| strata_div ||'; else caseID+1; drop strataID; run;';
+											end;
+											else do;
+													resample.addRowID / intable=intable;
+															alterTable / name=intable columns={{name='rowID',rename='caseID'}};
+											end;
+									end;
+
 							datastep.runcode result=t / code='data tempholdb; nthreads=_nthreads_; output; run;';
 									fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
 									dropTable name='tempholdb';
 									bss=ceil(B/q[1,1].M);
-							datastep.runcode result=t / code='data '|| intable ||'_bskey;
-														call streaminit('|| seed ||');
-														do bs = 1 to '|| bss ||';
-															bsID = (_threadid_-1)*'|| bss ||' + bs;
-															do bs_caseID = 1 to '|| r.Bpctn ||';
-													 			caseID = int(1+'|| r.numCases ||'*rand(''Uniform''));
-													 			bag=1;
-													 			output;
-															end;
-														end;
-														drop bs;
-													 run;';
+									bssmax=bss*q[1,1].M;
+
+							if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+											datastep.runcode result=t / code='data '||intable||'_bskey;
+																														call streaminit('||seed||');
+																														set internalstrata_info;
+																														array p(*) $ p1-p100;
+																														bag = 1;
+																														do bsID = 1 to '||bssmax||';
+																																if strata_dist ne '''' then do;
+																																		i = 1;
+																																		do while(scan(strata_dist,i,'','')ne'''');
+																																				p(i)=scan(strata_dist,i,'','');
+																																				i+1;
+																																		end;
+																																		if p3 then holder = rand(p1,1*p2,1*p3);
+																																		else if p2 then holder = rand(p1,1*p2);
+																																		else if p1 then holder =rand(p1);
+																																		if holder <= 0 then holder = 0;
+																																end;
+																																else if strata_n then holder = strata_n;
+																																else holder = strata_n_data;
+																																do bs_CaseIDn = 1 to holder;
+																																		caseID = int(1 + strata_n_data*rand(''Uniform''))+strataID/'|| strata_div ||';
+																																		bs_caseID = bs_CaseIDn + '||strata_div||';
+																																		output;
+																																end;
+																														end;
+																														drop p: i strata_n strata_n_data strata_dist holder bs_CaseIDn;
+																												run;' single='yes';
+											partition / casout={name=intable||'_bskey', replace=TRUE} table={name=intable||'_bskey', groupby={{name='bsID'}}};
+							end;
+							else do;
+											datastep.runcode result=t / code='data '|| intable ||'_bskey;
+																		call streaminit('|| seed ||');
+																		do bs = 1 to '|| bss ||';
+																			bsID = (_threadid_-1)*'|| bss ||' + bs;
+																			do bs_caseID = 1 to '|| Bpctn ||';
+																				caseID = int(1+'|| numCases ||'*rand(''Uniform''));
+																				bag=1;
+																				output;
+																			end;
+																		end;
+																		drop bs;
+																	 run;';
+							end;
+
 							fedSql.execDirect / query='create table '|| intable ||'_bs {options replace=TRUE} as
 															select * from
 																(select b.bsID, b.caseID, c.bs_caseID, CASE when c.bag is null then 0 else c.bag END as bag from
@@ -98,9 +207,13 @@ proc cas;
 																left join
 																'|| intable ||'
 																using (caseID)';
+
 							dropTable name=intable||'_bskey';
+							dropTable name='internalstrata_info';
 							partition / casout={name=intable||'_bs', replace=TRUE} table={name=intable||'_bs', groupby={{name='bsID'}}};
+
 							resp.bss=bss;
+							resp.bssmax=bssmax;
 							send_response(resp);
 				"
 			}
@@ -119,7 +232,7 @@ proc cas;
 				definition = "
 							table.tableExists result=c / name=intable||'_bs';
 								if c.exists==0 then do;
-									bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct Case=Case;
+									bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct Case=Case Strata='notacolumn' strata_table='notatable';
 								end;
 							datastep.runcode result=t / code='data tempholdbss; set '|| intable || '_bs; threadid=_threadid_; nthreads=_nthreads_; run;';
 									fedsql.execDirect result=q1 / query='select count(*) as cbsid from (select distinct bsID from tempholdbss) a';

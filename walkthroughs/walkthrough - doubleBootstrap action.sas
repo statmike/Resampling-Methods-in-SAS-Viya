@@ -43,6 +43,7 @@ proc cas;
 		Bpct=1; /* The percentage of the original samples rowsize to use as the resamples size 1=100% */
 		Dpct=1; /* The percentage of the original samples rowsize to use as the resamples (DoubleBootstrap) size 1=100% */
 		case='unique_case'; /* if the value is a column in intable then uses unique values of that column as cases, otherwise will use rows of intable as cases */
+		strata='Make'; /* if the value is a column in intable then uses unique values of that column as by levels, otherwise will bootstrap the full intable */
 run;
 
 		/* check to see if resample.bootstrap has already been run
@@ -50,7 +51,7 @@ run;
 		table.tableExists result=c / name=intable||'_bs';
 				/* if intable_bs does not exists then run the resample.bootstrap action to create it */
 				if c.exists==0 then do;
-					bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct Case=Case;
+					resample.bootstrap result=r / intable=intable B=B seed=seed Bpct=Bpct Case=Case Strata=Strata;
 				end;
 run;
 
@@ -61,7 +62,7 @@ run;
 				fedsql.execDirect result=q2 / query='select max(nthreads) as nthreads from tempholdbss';
 				dropTable name='tempholdbss';
 				bss=q1[1,1].cbsid/q2[1,1].nthreads;
-				print bss;
+				*print bss;
 run;
 
 		/*  take a look at how the table is distributed in the CAS environment */
@@ -137,7 +138,7 @@ run;
 											using (bsID,bs_caseID)';
 run;
 
-		/* use some fancy sql to merge the bootstrap structure with the sample data
+		/* use some fancy sql to merge the double-bootstrap structure with the sample data
 					and include the unsampled rows with bag=0
 							note unsampled (bag=0) includes unsampled cases in bootstrap and double-bootstrap
 				a review of this sql can be found in the bootstrap action walkthrough */
