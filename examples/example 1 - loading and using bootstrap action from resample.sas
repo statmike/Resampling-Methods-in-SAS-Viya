@@ -15,7 +15,7 @@ run;
 
 /* bootstrap */
 proc cas;
-	resample.bootstrap / intable='sample' B=100 seed=12345 Bpct=1 case='unique_case' strata='none';
+	resample.bootstrap / intable='sample' B=100 seed=12345 Bpct=1 case='unique_case' strata='none' strata_table='none';
 			/*  take a look at how the table is distributed in the CAS environment */
 			datastep.runcode result=t / code='data sample_bs; set sample_bs; host=_hostname_; threadid=_threadid_; run;';
 			simple.crossTab / table={name="sample_bs" where="bag=1"} row="bsid" col="host" aggregator="N";

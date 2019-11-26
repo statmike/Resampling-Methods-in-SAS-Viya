@@ -44,7 +44,7 @@ proc sql;
 		from sashelp.cars where type ne 'Sedan'
 		group by type;
 run;
-data sample_strata; set sample_strata; if type ne 'Sedan' then strata_diff='Normal,200,50'; run;
+data sample_strata; set sample_strata; if type ne 'Sedan' then strata_dist='Normal,200,50'; run;
 proc casutil;
 		load data=sashelp.cars casout="sample" replace; /* n=428 */
 		load data=sample_strata casout="sample_strata" replace;
@@ -90,33 +90,33 @@ run;
 						/* CASE */
 						if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
 								/* make a one column table of unique cases */
-								fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '||| CASE ||', '|| STRATA ||' from '|| intable;
-								fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as select distinct '|| STRATA ||', count(*) as strata_n_data, '''' as strata_dist from ' intable ||'_cases group by '|| STRATA;
+								fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||', '|| STRATA ||' from '|| intable;
+								fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as select distinct '|| STRATA ||', count(*) as strata_n_data, '''' as strata_dist from '|| intable ||'_cases group by '|| STRATA;
 						end;
 						/* NO CASE */
 						else do;
 								fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as select distinct '|| STRATA ||', count(*) as strata_n_data, '''' as strata_dist from '|| intable ||' group by '|| STRATA;
 						end;
-						resample.addRowID / 'internalstrata_info';
+						resample.addRowID / intable='internalstrata_info';
 								alterTable / name='internalstrata_info' columns={{name='rowID',rename='strataID'}};
 						table.tableExists result=es / name=strata_table;
-						if es.exists==0 then do;
+						if es.exists==1 then do;
 								table.columninfo result=s / table=strata_table;
 								if s.columninfo.where(upcase(column)=upcase('STRATA_DIST')).nrows=1 then do;
 										fedsql.execDirect r=rs / query='create table internalstrata_info {options replace=TRUE} as
-																									select a.strata, a.strataID, a.strata_n_data, b.strata_n, b.strata_dist from
-																											(select * from internalstrata_info as a
+																									select a.'||strata||', a.strataID, a.strata_n_data, b.strata_n, b.strata_dist from
+																											(select * from internalstrata_info) as a
 																											left outer join
-																											select * from strata_table b as b
-																											using(strata))';
+																											(select * from '|| strata_table ||') as b
+																											using('||strata||')';
 								end;
 								else do;
 									fedsql.execDirect r=rs / query='create table internalstrata_info {options replace=TRUE} as
-																								select a.strata, a.strataID, a.strata_n_data, b.strata_n, a.strata_dist from
-																										(select * from internalstrata_info as a
+																								select a.'||strata||', a.strataID, a.strata_n_data, b.strata_n, a.strata_dist from
+																										(select * from internalstrata_info) as a
 																										left outer join
-																										select * from strata_table b as b
-																										using(strata))';
+																										(select * from '|| strata_table ||') as b
+																										using('||strata||')';
 								end;
 						end;
 						simple.numRows result=t / table='internalstrata_info';
@@ -222,31 +222,31 @@ run;
 							these instructions are sent to each _threadid_ and replicated bss times */
 						datastep.runcode result=t / code='data '||intable||'_bskey;
 																									call streaminit('||seed||');
-																									set internalstrata_table;
-																									arry p(*) $ p1-p100;
+																									set internalstrata_info;
+																									array p(*) $ p1-p100;
 																									bag = 1;
 																									do bsID = 1 to '||bssmax||';
-																											if strata_dist then do;
+																											if strata_dist ne '''' then do;
 																													i = 1;
-																													do while (scan(strata_dist,i,'','')ne'''');
+																													do while(scan(strata_dist,i,'','')ne'''');
 																															p(i)=scan(strata_dist,i,'','');
 																															i+1;
 																													end;
-																													if p3 then holder = rand(p1,p2,p3);
-																													else if p2 then holder = rand(p1,p2);
+																													if p3 then holder = rand(p1,1*p2,1*p3);
+																													else if p2 then holder = rand(p1,1*p2);
 																													else if p1 then holder =rand(p1);
 																													if holder <= 0 then holder = 0;
 																											end;
-																											else if stata_n then holder = strata_n;
+																											else if strata_n then holder = strata_n;
 																											else holder = strata_n_data;
 																											do bs_CaseIDn = 1 to holder;
-																													caseID = int(1 + stata_n_data*rand(''Uniform''));
-																													bs_caseID = bsCaseIDn + '||strata_div||';
+																													caseID = int(1 + strata_n_data*rand(''Uniform''))+strataID/'|| strata_div ||';
+																													bs_caseID = bs_CaseIDn + '||strata_div||';
 																													output;
 																											end;
 																									end;
 																									drop p: i strata_n strata_n_data strata_dist holder bs_CaseIDn;
-																							run;' single=yes;
+																							run;' single='yes';
 						partition / casout={name=intable||'_bskey', replace=TRUE} table={name=intable||'_bskey', groupby={{name='bsID'}}};
 		end;
 		/* strata= is not a column in intable */
@@ -300,6 +300,7 @@ run;
 
 		/* drop the table holding the bootstrap resampling structure */
 		dropTable name=intable||'_bskey';
+		dropTable name='internalstrata_info';
 run;
 
 		/* rebalance the table by partitioning by bsID, this will ensure all the same values of bsID are on the same host but not necessarily the same _threadid_ */
@@ -315,8 +316,7 @@ run;
 
 		/* allow the action to have a response value, in this case the value of bss stored in a variable named bss */
 		resp.bss=bss;
-		resp.totalcases=r;
-		resp.strata_info=rs;
+		resp.bssmax=bssmax;
 		send_response(resp);
 run;
 
