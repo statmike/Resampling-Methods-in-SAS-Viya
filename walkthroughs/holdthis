@@ -1,0 +1,14 @@
+data new;
+call streaminit(-1);
+string='Normal,3,10';
+array p(*) $ p1-p100;
+i=1;
+do while(scan(string,i,',')ne'');
+p(i)=scan(string,i,',');
+i+1;
+end;
+var = int(rand(p1,1*p2,1*p3));
+if sign(var) = -1 then var = 0;
+drop p: i;
+run;
+proc print; run;
