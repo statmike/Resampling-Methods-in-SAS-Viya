@@ -1,5 +1,4 @@
 # TODO
-- [ ] document external table for stratification sample size specification include rand generators: strata table = strata, strata_n, {strata_dist}
 - [ ] add stratification to doubleBootstrap
 
 # Resampling Methods in the SAS Viya CAS Engine
@@ -16,11 +15,11 @@ All code is written in SAS CASL which can be executed from a SAS interface with 
 This repository has a user defined action set and instructions for loading it in your environment.  This also makes a great example of how to easily extend the capabilities of SAS Viya and share with all users in your environment.
 
 ### Contribute
-Have something to add?  Just fork it, change it, and create a pull request!
+Have something to add?  Just clone or branch it, commit changes, and create a pull request!
 
 Review the section [RepositoryLayout](#Respository-Layout) to understand dependencies in the repository structure.
 
-Have comments, questions, suggestions? Just use the issues feature in github
+Have comments, questions, suggestions? Just use the issues feature in GitHub
 
 ### Repository layout
 As updates are made to the repository there are dependencies between files and folders.  The primary file is `resample - defineActionSet.sas` and any updates to it will require updates in `/walkthroughs` and `Readme.md`.  Some folders and files are standalone like `/tools` and `/applications` but additions still need to be added to `Readme.md`.  Also, `/examples` may need to be updated if the actions calls are updated with parameter changes.
@@ -95,34 +94,67 @@ This is a reference chart for the relationship between the actions and their out
 
 resample.addRowID|resample.bootstrap|resample.doubleBootstrap|resample.jackknife|resample.percentilePE
 -----|-----|-----|-----|-----
-resample.addRowID /<br/>intable="sample";<br/><br/><br/><br/><br/><br/><br/><br/>|resample.bootstrap /<br/>intable="sample"<br/>Seed=12345<br/>B=100<br/>Bpct=1;<br/>case="unique_case"<br/>strata="strata"<br/><br/><br/>|resample.doubleBootstrap /<br/>intable="sample"<br/>Seed=12345<br/>B=100<br/>Bpct=1<br/>D=50<br/>Dpct=1<br/>case="unique_case";<br/><br/>|resample.jackknife /<br/>intable="sample"<br/>case="unique_case";<br/><br/><br/><br/><br/><br/><br/>|resample.percentilePE /<br/>intable="sample"<br/>alpha=0.05;<br/><br/><br/><br/><br/><br/><br/>
+resample.addRowID /<br/>intable="sample";<br/><br/><br/><br/><br/><br/><br/><br/>|resample.bootstrap /<br/>intable="sample"<br/>Seed=12345<br/>B=100<br/>Bpct=1;<br/>case="unique_case"<br/>strata="strata"<br/>strata_table="tableName"<br/><br/>|resample.doubleBootstrap /<br/>intable="sample"<br/>Seed=12345<br/>B=100<br/>Bpct=1<br/>D=50<br/>Dpct=1<br/>case="unique_case";<br/><br/>|resample.jackknife /<br/>intable="sample"<br/>case="unique_case";<br/><br/><br/><br/><br/><br/><br/>|resample.percentilePE /<br/>intable="sample"<br/>alpha=0.05;<br/><br/><br/><br/><br/><br/><br/>
 
 
 ### resample.addRowID action
 Updates the provided table <intable> with a new column named RowID that has a naturally numbered (1,2,...,n) across the distributed in-memory table.
 * rowID - is the naturally numbered (1, 2, ..., n) row identifier for the sampled row in `<intable>`
 
+##### Syntax
 ```
 CASL Syntax
 
     resample.addRowID /
       intable="string"
-
-Parameter Descriptions
-
-    intable="string"  
-      required  
-      Specifies the name of the table in cas
 ```
+##### Parameter Descriptions
+
+```intable="string"```  
+* required  
+* Specifies the name of the table in cas
+
 
 ### resample.bootstrap action
 Creates a table of bootstrap resamples from table `<intable>` and stores them in a table named `<intable>_bs`.  Runs the addRowID action on the `<intable>` cases.  Columns that describe the link between the bootstrap resamples and the original sample are:
 * bsID - is the naturally numbered (1, 2, ..., b) identifier of a resample
 * bs_caseID - is the naturally numbered (1, 2, ..., n) case identifier within the value of bsID
 * caseID - is the naturally numbered (1, 2, ..., n) case identifier for the resampled case in `<intable>` - see strata
-  * strata (if strata= is a column in `<intable>`) - defines a subgroup (by group) in `<intable>` for which caseID numbering is unique.  Each strata levels starts over at caseID=1 and has decimal value representing the unique strata levels: 1.01, 2.01, 3.01 are all for the same strata level (.01) while 1.02, 2.02, 3.02 are all for strata level (.02).
+  * strata (if strata= is a column in `<intable>`) - defines subgroups (by groups) in `<intable>` for which caseID numbering is unique.  Each strata levels starts over at caseID=1 and has decimal value representing the unique strata levels: 1.01, 2.01, 3.01 are all for the same strata level (.01) while 1.02, 2.02, 3.02 are all for strata level (.02).
 * bag - is 1 for resampled case, 0 for caseID values not resampled within the bsID (will have missing for bs_caseID)
 
+##### Notes on Stratification
+The resample.bootstrap action has two input parameters to direct stratification: `strata` and `strata_table`.  If the value of `strata` is not a column in `<intable>` then stratification does not occur and bootstrap resampling proceeds on the full '<intable>'.
+
+The `strata_table` parameter allows you to provide an input table with columns `strata` (same name as in `<intable>` and provided with the `strata` parameter), `strata_n`, and `strata_dist` (optional).
+
+An Example `<strata_table>` might look like:
+
+MyStrata|strata_n
+-----|-----
+Level 1|10
+Level 2|100
+Level 3|45
+
+If you want to randomly assign the `strata_n` value for each strata level in each bootstrap resample then use the `strata_dist` parameter to provide input for the [SAS RAND Function](https://documentation.sas.com/?docsetId=lefunctionsref&docsetTarget=p0fpeei0opypg8n1b06qe4r040lv.htm&docsetVersion=9.4&locale=en).
+
+MyStrata|strata_n|strata_dist
+-----|-----|-----
+Level 1||'normal,0,20'
+Level 2||'normal,200,50'
+Level 3||'hyper,200,50,50'
+
+Notes on the parameter precedence:  
+* The bootstrap action will check for the `strata` variable in `<intable>` and compute the number of observations present for each level.
+* If `<strata_table>` does not exist or does not contain the `strata` variable then bootstrap commences with the `<intable>` size for each strata level adjusted by the `Bpct` parameter.
+* Else If `<strata_table>` does exist then the `Bpct` parameter is ignored and:
+  * Adds any missing levels of `strata` found in the `<intable>` and populates `strata_n`
+  * Removes any levels of `strata` not found in `<intable>`
+  * If `strata_dist` is present then it is used to calcualte a new `strata_n` for each bootstrap sample
+    * Else If `strata_dist` is not provided, then the input value of `strata_n` is used for each bootstrap sample
+    * Else If `strata_n` is not provided, then the calculated value from `<intable>` is used for each bootstrap sample
+
+##### Syntax
 ```
 CASL Syntax
 
@@ -134,41 +166,38 @@ CASL Syntax
       B=integer
       Bpct=double
       seed=integer
-
-Parameter Descriptions
-
-    intable="string"  
-      required  
-      specifies the name of the table to resample from in CAS
-    case="string"
-      required
-      Specifies the name of the column from `<intable>` that connects groupings of rows that make up cases.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling.
-    strata="string"
-      required
-      Specifies the name of the column from `<intable>` that is used to partition or group the rows before resampling.  Resampling will happen independently within each level of the strata variable and the Bpct= parameter will apply separately to each strata level.  This essentially acts as a by variable for resampling.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling (non-stratified).
-    strata_table="string"
-      required
-      Specifies the name of a table `<strata_table>` that is used to specify the sample info for levels of the `strata` variable.  
-      If `strata` is not a column in `<intable>` then `<strata_table>` is ignored.
-      Else:
-          if `strata` is a column in `strata_table` then:
-            if a column strata_n has a value then:
-              it is used as the size for resampling the value of strata.  This overrides Bpct and the original size of the strata level in `<intable>`.
-            elif a column strata_dist has a value then:
-              it is used to create a random sample size for the value of strata for each resample.  This overrides Bpct, the original size of the strata level, and any value in strata_n.
-            if a value of strata is found in `<intable>` but is missing in `<strata_table>` the the strata_n is derived from its size in `<intable>`
-    B=integer
-      required
-      Specifies the desired number of bootstrap resamples.  
-      Note: Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
-    Bpct=double
-      required (optional with default=1 in the future)
-      The percentage of the number of sample cases (intable) to use as the resample size 1=100%
-    seed=integer
-      required (optional with default=0 in the future)
-      Sets the seed for random sampling.  If missing, zero, or negative then SAS will compute a default seed.  
 ```
-See the [documentation for Call Streaminit](https://go.documentation.sas.com/?cdcId=pgmsascdc&cdcVersion=9.4_3.3&docsetId=lefunctionsref&docsetTarget=p0gw58qo85qp56n1kbpiz50ww8lv.htm&locale=en) for further information on specifying a seed and changing the random-number generator (RNG).
+##### Parameter Descriptions
+
+```intable="string"```  
+* required  
+* specifies the name of the table to resample from in CAS
+
+```case="string"```
+* required
+* Specifies the name of the column from `<intable>` that connects groupings of rows that make up cases.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling.
+
+```strata="string"```
+* required
+* Specifies the name of the column from `<intable>` that is used to partition or group the rows before resampling.  Resampling will happen independently within each level of the strata variable and the Bpct= parameter will apply separately to each strata level.  This essentially acts as a by variable for resampling.  If the value specified is not a column name in `<intable>` then bootstrap sampling proceeds without stratification.
+
+```strata_table="string"```
+* required
+* Specifies the name of a table `<strata_table>` that is used to specify the sample info for levels of the `strata` variable.  See [Notes on Stratification above](#Notes-on-Stratification).
+
+```B=integer```
+* required
+* Specifies the desired number of bootstrap resamples.  
+* Note: Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
+
+```Bpct=double```
+* required (optional with default=1 in the future)
+* The percentage of the number of sample cases (intable) to use as the resample size 1=100%
+
+```seed=integer```
+* required (optional with default=0 in the future)
+* Sets the seed for random sampling.  If missing, zero, or negative then SAS will compute a default seed.  
+* See the [documentation for Call Streaminit](https://go.documentation.sas.com/?cdcId=pgmsascdc&cdcVersion=9.4_3.3&docsetId=lefunctionsref&docsetTarget=p0gw58qo85qp56n1kbpiz50ww8lv.htm&locale=en) for further information on specifying a seed and changing the random-number generator (RNG).
 
 ### resample.doubleBootstrap action
 Creates a table of bootstrap and double-bootstrap resamples from table `<intable>` and stores them in tables `<intable>_bs` and `<intable>_dbs`.  Runs the addRowID action on the `<intable>` cases.  If the bootstrap action has already been run on table `<intable>` then a table `<intable>_bs` already exist and will be used for double-bootstraping.  Columns that describe the link between the double-bootstrap resamples and the bootstrap resamples are:
@@ -177,10 +206,12 @@ Creates a table of bootstrap and double-bootstrap resamples from table `<intable
 * dbs_caseID - is the naturally numbered (1, 2, ..., n) case identifier within the value of dbsID
 * bs_caseID - is the naturally numbered (1, 2, ..., n) case identifier for the resampled case in bsID
 * caseID - is the naturally numbered (1, 2, ..., n) case identifier for the resampled case in `<intable>` - see strata
-  * strata (if strata= is a column in `<intable>`) - defines a subgroup (by group) in `<intable>` for which caseID numbering is unique.  Each strata levels starts over at caseID=1 and has decimal value representing the unique strata levels: 1.01, 2.01, 3.01 are all for the same strata level (.01) while 1.02, 2.02, 3.02 are all for strata level (.02).
+  * strata (if strata= is a column in `<intable>` for a previously run resample.bootstrap call) - defines a subgroup (by group) in `<intable>` for which caseID numbering is unique.  Each strata levels starts over at caseID=1 and has decimal value representing the unique strata levels: 1.01, 2.01, 3.01 are all for the same strata level (.01) while 1.02, 2.02, 3.02 are all for strata level (.02).
+  * Note: stratification is not yet available for the doubleBootstrap action.  You can still run the bootstrap action first with stratification and then use the result table for doubleBootstrap technique. This feature is being worked on.
 * bag - is 1 for resampled cases, 0 for caseID values not resampled within the bsID (will have missing for bs_caseID)
   * 0 could be a non-resampled row in either the bsID or the dbsID (resampled from bsID)
 
+##### Syntax
 ```
 CASL Syntax
 
@@ -192,79 +223,89 @@ CASL Syntax
       seed=integer
       Bpct=double
       Dpct=double
-
-Parameter Descriptions
-
-    intable="string"  
-      required  
-      specifies the name of the table to resample from in CAS
-    case="string"
-      required
-      Specifies the name of the column from `<intable>` that connects groupings of rows that make up cases.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling.
-    B=integer
-      required
-      Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
-      Note: If you run resample.bootstrap first then you should use the same value of B (it will ignore the value and use the value from the prior bootstrap).
-          If you don't run resample.bootstrap first then resample.doubleBootstrap will run it first.
-    D=integer
-      required
-      Specifies the desired number of double-bootstrap resamples from each bootstrap resample.
-    Bpct=double
-      required (optional with default=1 in the future)
-      The percentage of the number of sample cases (intable) to use as the resample size 1=100%
-    Dpct=double
-      required (optional with default=1 in the future)
-      The percentage of the number of bootstrap resample cases (intable_bs) to use as the double-bootstrap resample size 1=100%
-      Note: if Bpct is set to 50% (0.5) and Dpct is set to 100% (1) the the double-bootstrap resamples will still be 50% of the size of the original samples (intable) number of cases
-    seed=integer
-      required (optional with default=0 in the future)
-      Sets the seed for random sampling.  If missing, zero, or negative then SAS will compute a default seed.  
-    Note: The number of double-bootstrap resamples is atleast B*D.  For Example: B=1000 and D=1000 yields at least B*D=1000000
 ```
-See the [documentation for Call Streaminit](https://go.documentation.sas.com/?cdcId=pgmsascdc&cdcVersion=9.4_3.3&docsetId=lefunctionsref&docsetTarget=p0gw58qo85qp56n1kbpiz50ww8lv.htm&locale=en) for further information on specifying a seed and changing the random-number generator (RNG).
+##### Parameter Descriptions
+
+```intable="string"```  
+* required  
+* specifies the name of the table to resample from in CAS
+
+```case="string"```
+* required
+* Specifies the name of the column from `<intable>` that connects groupings of rows that make up cases.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling.
+
+```B=integer```
+* required
+* Specifies the desired number of bootstrap resamples.  Will look at the number of threads (_nthreads_) in the environment and set the value of bss (resamples per _threadid_) to ensure the final number of bootstrap resamples is >=B.
+* Note: If you run resample.bootstrap first then you should use the same value of B (it will ignore the value and use the value from the prior bootstrap).
+  * If you don't run resample.bootstrap first then resample.doubleBootstrap will run it first.
+
+```D=integer```
+* required
+* Specifies the desired number of double-bootstrap resamples from each bootstrap resample.
+
+```Bpct=double```
+* required (optional with default=1 in the future)
+* The percentage of the number of sample cases (intable) to use as the resample size 1=100%
+
+```Dpct=double```
+* required (optional with default=1 in the future)
+* The percentage of the number of bootstrap resample cases (intable_bs) to use as the double-bootstrap resample size 1=100%
+* Note: if Bpct is set to 50% (0.5) and Dpct is set to 100% (1) the the double-bootstrap resamples will still be 50% of the size of the original samples (intable) number of cases
+
+```seed=integer```
+* required (optional with default=0 in the future)
+* Sets the seed for random sampling.  If missing, zero, or negative then SAS will compute a default seed.
+* See the [documentation for Call Streaminit](https://go.documentation.sas.com/?cdcId=pgmsascdc&cdcVersion=9.4_3.3&docsetId=lefunctionsref&docsetTarget=p0gw58qo85qp56n1kbpiz50ww8lv.htm&locale=en) for further information on specifying a seed and changing the random-number generator (RNG).
+
+Note: The number of double-bootstrap resamples is atleast B*D.  For Example: B=1000 and D=1000 yields at least B*D=1000000
+
+
 
 ### resample.jackknife action
 Creates a table of jackknife resamples from table `<intable>` and stores them in table `<intable>_jk`.  Runs the addRowID action on the `<intable>` cases.  There will be J resamples identified with jkID, where J is equal to the number of cases in `<intable>`.  The values of jkID are numbered 1, 2, ... n and each has resampled cases identified by caseID.  When caseID from `<intable>` is equal to jkID the case is deleted/omitted.  
 * jkID - is the naturally numbered (1, 2, ..., n) identifier of a resample
 * caseID - is the naturally numbered (1, 2, ..., n) case identifier for the resampled case in `<intable>`
 
+##### Syntax
 ```
 CASL Syntax
 
     resample.jackknife /
       intable="string"
       case="string"
-
-Parameter Descriptions
-
-    intable="string"
-      required
-      specifies the name of the table to resample from in CAS
-    case="string"
-      required
-      Specifies the name of the column from `<intable>` that connects groupings of rows that make up cases.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling.
 ```
+##### Parameter Descriptions
+
+```intable="string"```
+* required
+* specifies the name of the table to resample from in CAS
+
+```case="string"```
+* required
+* Specifies the name of the column from `<intable>` that connects groupings of rows that make up cases.  If the value specified is not a column name in `<intable>` then the rows will be used as individual cases during resampling.
 
 ### resample.percentilePE action
 This action creates percentile confidence intervals for parameter estimates.  The action uses the sample table name `<intable>` and expect to find `<intable>`_PE for the full data parameter estimates and one or more of `<intable>`_BS_PE, `<intable>`_DBS_PE, and `<intable>`_JK_PE that are the parameter estimates from fitting the model to the resample data create by the bootstrap, doubleBoostrap, and jackknife actions.  Check [example 2](./examples/example%202%20-%20regression%20bootstrap%20parameter%20estimates.sas), [example 3](./examples/example%203%20-%20regression%20double%20bootstrap%20parameter%20estimates.sas), and [example 4](./examples/example%204%20-%20regression%20jackknife%20parameter%20estimates.sas) for help using this action.
 
+##### Syntax
 ```
 CASL Syntax
 
     resample.percentilePE /
       intable="string"
       alpha=double
-
-Parameter Descriptions
-
-    intable="string"
-      required
-      specifies the name of the sample table
-        The action will look for <intable>_BS_PE, <intable>_DBS_PE, and <intable>_JK_PE.  It expects to also find <intable>_PE for the full data.  These are the outputs of parameter estimates from the model action of your choice.  Run the resample action(s) you want then do groupby model fitting with the model action of your choice and use this naming for the PE files.
-    alpha=double
-      required
-      specifies the alpha level of the two-sided percentile confidence interval that will be constructed.  Provide a value in (0,1).
 ```
+##### Parameter Descriptions
+
+```intable="string"```
+* required
+* specifies the name of the sample table
+* The action will look for `<intable>`_BS_PE, `<intable>`_DBS_PE, and `<intable>`_JK_PE.  It expects to also find `<intable>`_PE for the full data.  These are the outputs of parameter estimates from the model action of your choice.  Run the resample action(s) you want then do groupby model fitting with the model action of your choice and use this naming for the PE files.
+
+```alpha=double```
+* required
+* specifies the alpha level of the two-sided percentile confidence interval that will be constructed.  Provide a value in (0,1).
 
 ---
 # Further SAS References
