@@ -44,7 +44,7 @@ proc sql;
 		from sashelp.cars where type ne 'Sedan'
 		group by type;
 run;
-data sample_strata; set sample_strata; if type ne 'Sedan' then strata_diff='Normal,200,50'; run;
+
 proc casutil;
 		load data=sashelp.cars casout="sample" replace; /* n=428 */
 		load data=sample_strata casout="sample_strata" replace;
@@ -78,75 +78,48 @@ run;
 /* 1 - ADD caseID TO INTABLE */
 		/* workflow: if case is a column in intable then do first route, otherwise do second route (else) */
 		table.columninfo result=i / table=intable;
-
 				/* if a column caseID is present then drop it - protected term, may be leftover from previous run */
 				if i.columninfo.where(upcase(Column)='CASEID').nrows=1 then do;
 						alterTable / name=intable columns={{name='caseID', drop=TRUE}};
 				end;
 
 				/* RECONCILE STRATA INFORMATION */
-				/* STRATA */
 				if i.columninfo.where(upcase(Column)=upcase(STRATA)).nrows=1 then do;
-						/* CASE */
-						if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
-								/* make a one column table of unique cases */
-								fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '||| CASE ||', '|| STRATA ||' from '|| intable;
-								fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as select distinct '|| STRATA ||', count(*) as strata_n_data, '''' as strata_dist from ' intable ||'_cases group by '|| STRATA;
-						end;
-						/* NO CASE */
-						else do;
-								fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as select distinct '|| STRATA ||', count(*) as strata_n_data, '''' as strata_dist from '|| intable ||' group by '|| STRATA;
-						end;
-						resample.addRowID / 'internalstrata_info';
-								alterTable / name='internalstrata_info' columns={{name='rowID',rename='strataID'}};
-						table.tableExists result=es / name=strata_table;
-						if es.exists==0 then do;
-								table.columninfo result=s / table=strata_table;
-								if s.columninfo.where(upcase(column)=upcase('STRATA_DIST')).nrows=1 then do;
+					if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
+							fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as
+																						select distinct '|| STRATA ||', count(*) as strata_n, '''' as strata_dist from '||
+																						'(select distinct '|| CASE ||', '|| STRATA ||' from ' || intable ||') as a'
+																						||' group by '|| STRATA;
+					end;
+					else do;
+						fedsql.execDirect / query='create table internalstrata_info {options replace=TRUE} as
+																					select distinct '|| STRATA ||', count(*) as strata_n, '''' as strata_dist from '||
+																					intable
+																					||' group by '|| STRATA;
+					end;
+					resample.addRowID / 'internalstrata_info';
+							alterTable / name='internalstrata_info' columns={{name='rowID',rename='strataID'}};
+					table.tableExists result=es / name=strata_table;
+							table.columninfo result=s / table=strata_table;
+							if es.exists==0 then do;
+									if s.columninfo.where(upcase(column)=upcase('STRATA_DIST')).nrows=1 then do;
+											fedsql.execDirect r=rs / query='create table internalstrata_info {options replace=TRUE} as
+																										select a.strata, CASE when b.strata_n is not null then b.strata_n else a.strata_n END as strata_n, b.strata_dist from
+																												(select * from internalstrata_info as a
+																												left outer join
+																												select * from strata_table b as b
+																												using(strata))';
+									end;
+									else do;
 										fedsql.execDirect r=rs / query='create table internalstrata_info {options replace=TRUE} as
-																									select a.strata, a.strataID, a.strata_n_data, b.strata_n, b.strata_dist from
+																									select a.strata, CASE when b.strata_n is not null then b.strata_n else a.strata_n END as strata_n, a.strata_dist from
 																											(select * from internalstrata_info as a
 																											left outer join
 																											select * from strata_table b as b
 																											using(strata))';
-								end;
-								else do;
-									fedsql.execDirect r=rs / query='create table internalstrata_info {options replace=TRUE} as
-																								select a.strata, a.strataID, a.strata_n_data, b.strata_n, a.strata_dist from
-																										(select * from internalstrata_info as a
-																										left outer join
-																										select * from strata_table b as b
-																										using(strata))';
-								end;
-						end;
-						simple.numRows result=t / table='internalstrata_info';
-						strata_div=10**((int64)(ceil(log10(t.numrows+1)))); /* count the number of digits and create a divisor so that all will be decimal valued when divided by the divisor: r.numrows=101 gives 10**3 which is 1000 */
+									end;
+							end;
 				end;
-				/* NO STRATA */
-				else do;
-						/* CASE */
-						if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
-								/* make a one column table of unique cases */
-								fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||' from '|| intable;
-								/* addRowID to the unique cases, then rename rowID to caseID */
-								resample.addRowID / intable=intable||'_cases';
-										alterTable / name=intable||'_cases' columns={{name='rowID',rename='caseID'}};
-								/* store the row count from the cases for further calculations */
-								simple.numRows result=r / table=intable||'_cases';
-								/* store the size of the original sample data (cases) in r.numCases */
-								numCases=r.numrows;
-								/* set r.Bpctn to the fraction of the original sample tables case size to be resampled for for each bootstrap resample */
-								Bpctn=CEIL(numCases*Bpct);
-						end;
-						/* NO CASE */
-						else do;
-								/* store the row count from the cases for further calculations */
-								simple.numRows result=r / table=intable;
-								numCases=r.numRows;
-								Bpctn=CEIL(numCases*Bpct);
-						end;
-				end;
-
 
 				/* first route: case= is a column in intable */
 				if i.columninfo.where(upcase(column)=upcase(CASE)).nrows=1 then do;
@@ -154,14 +127,23 @@ run;
 						if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
 								/* make a one column table of unique cases & strata levels */
 								fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||', '|| STRATA ||' from '|| intable;
-										/*merge intable_cases with internalstrata_table (adds a integer representation of strata levels)*/
-										fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select * from
+										fedsql.execDirect / query='create table stratan as select distinct '|| STRATA ||' from '|| intable ||'_cases';
+										datastep.runcode result=t / code='data stratan; set stratan; by '|| STRATA ||'; retain stratan 0; stratan+1; run;' single='yes';
+										/*merge intable_cases with stratan (adds a integer representation of strata levels)*/
+										fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select * From
 																									(select * from '|| intable ||'_cases) a
 																									left outer join
-																									(select '|| STRATA ||', strataID from internalstrata_info) b
+																									(select * from stratan) b
 																									using('|| STRATA ||')';
+										simple.numRows result=r / table='stratan';
+										strata_div=10**((int64)(ceil(log10(r.numrows+1)))); /* count the number of digits and create a divisor so that all will be decimal valued when divided by the divisor: r.numrows=101 gives 10**3 which is 1000 */
+										dropTable name='stratan';
 								/* number rows for each level of strata= starting with 1 for each */
-								datastep.runcode result=t / code='data '|| intable ||'_cases; set '|| intable ||'_cases; by '|| strata ||'; retain caseID; if first.'|| strata ||' then caseID=1+strataID/'|| strata_div ||'; else caseID+1; run;';
+								datastep.runcode result=t / code='data '|| intable ||'_cases; set '|| intable ||'_cases; by '|| strata ||'; retain caseID; if first.'|| strata ||' then caseID=1+stratan/'|| strata_div ||'; else caseID+1; run;';
+								/* store the row count from the cases for further calculations */
+								simple.numRows result=r / table=intable||'_cases';
+								/* store the row count for each strata level for further calculations */
+								simple.freq result=rs / inputs='stratan' table=intable||'_cases';
 								/* merge the caseID into the intable */
 								fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
 																							select * From
@@ -174,6 +156,13 @@ run;
 						end;
 						/* strata= is not a column in intable */
 						else do;
+								/* make a one column table of unique cases */
+								fedsql.execDirect / query='create table '|| intable ||'_cases {options replace=TRUE} as select distinct '|| CASE ||' from '|| intable;
+								/* addRowID to the unique cases, then rename rowID to caseID */
+								resample.addRowID / intable=intable||'_cases';
+									alterTable / name=intable||'_cases' columns={{name='rowID',rename='caseID'}};
+								/* store the row count from the cases for further calculations */
+								simple.numRows result=r / table=intable||'_cases';
 								/* merge the caseID into the intable */
 								fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as
 																							select * From
@@ -189,19 +178,32 @@ run;
 				else do;
 						/* strata= is a column in intable so stratify sampling */
 						if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
-								/*merge intable with stratan (adds a integer representation of strata levels)*/
-								fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as select * from
-																							(select * from '|| intable ||') a
-																							left outer join
-																							(select '|| STRATA ||', strataID from internalstrata_info) b
-																							using('|| STRATA ||')';
-								datastep.runcode result=t / code='data '|| intable ||'; set '|| intable ||'; by '|| strata ||'; retain caseID; if first.'|| strata ||' then caseID=1+strataID/'|| strata_div ||'; else caseID+1; drop strataID; run;';
+								/* number rows for each level of strata= starting with 1 for each */
+										fedsql.execDirect / query='create table stratan as select distinct '|| STRATA ||' from '|| intable;
+										datastep.runcode result=t / code='data stratan; set stratan; by '|| STRATA ||'; retain stratan 0; stratan+1; run;' single='yes';
+										/*merge intable with stratan (adds a integer representation of strata levels)*/
+										fedsql.execDirect / query='create table '|| intable ||' {options replace=TRUE} as select * From
+																									(select * from '|| intable ||') a
+																									left outer join
+																									(select * from stratan) b
+																									using('|| STRATA ||')';
+										simple.numRows result=r / table='stratan';
+										strata_div=10**((int64)(ceil(log10(r.numrows+1)))); /* count the number of digits and create a divisor so that all will be decimal valued when divided by the divisor: r.numrows=101 gives 10**3 which is 1000 */
+										dropTable name='stratan';
+								datastep.runcode result=t / code='data '|| intable ||'; set '|| intable ||'; by '|| strata ||'; retain caseID; if first.'|| strata ||' then caseID=1+stratan/'|| strata_div ||'; else caseID+1; run;';
+								/* store the row count from the cases for further calculations */
+								simple.numRows result=r / table=intable;
+								/* store the row count for each strata level for further calculations */
+								simple.freq result=rs / inputs='stratan' table=intable;
+								datastep.runcode result=t / code='data '|| intable ||'; set '|| intable ||'; drop stratan; run;';
 						end;
 						/* strata= is not a column in intable */
 						else do;
 								/* addRowID to intable since rows are unique cases, then rename rowID to caseID */
 								resample.addRowID / intable=intable;
-										alterTable / name=intable columns={{name='rowID',rename='caseID'}};
+									alterTable / name=intable columns={{name='rowID',rename='caseID'}};
+								/* store the row count from the cases for further calculations */
+								simple.numRows result=r / table=intable;
 						end;
 				end;
 run;
@@ -213,53 +215,34 @@ run;
 				fedsql.execDirect result=q / query='select max(nthreads) as M from tempholdb';
 				dropTable name='tempholdb';
 				bss=ceil(B/q[1,1].M);
-				bssmax=bss*q[1,1].M;
-
 		/* strata= is a column in intable so stratify sampling */
 		if i.columninfo.where(upcase(column)=upcase(STRATA)).nrows=1 then do;
+				rs.frequency=rs.frequency.compute({'Bpctn','Bpctn'},CEIL(Frequency*Bpct));
 				/* create a structure for the bootstrap sampling.
-							Will make resample sized by the internalstrata_info table constructed above
+							Will make resamples equal to the size of the original tables cases
 							these instructions are sent to each _threadid_ and replicated bss times */
-						datastep.runcode result=t / code='data '||intable||'_bskey;
-																									call streaminit('||seed||');
-																									set internalstrata_table;
-																									arry p(*) $ p1-p100;
-																									bag = 1;
-																									do bsID = 1 to '||bssmax||';
-																											if strata_dist then do;
-																													i = 1;
-																													do while (scan(strata_dist,i,'','')ne'''');
-																															p(i)=scan(strata_dist,i,'','');
-																															i+1;
-																													end;
-																													if p3 then holder = rand(p1,p2,p3);
-																													else if p2 then holder = rand(p1,p2);
-																													else if p1 then holder =rand(p1);
-																													if holder <= 0 then holder = 0;
-																											end;
-																											else if stata_n then holder = strata_n;
-																											else holder = strata_n_data;
-																											do bs_CaseIDn = 1 to holder;
-																													caseID = int(1 + stata_n_data*rand(''Uniform''));
-																													bs_caseID = bsCaseIDn + '||strata_div||';
-																													output;
-																											end;
-																									end;
-																									drop p: i strata_n strata_n_data strata_dist holder bs_CaseIDn;
-																							run;' single=yes;
-						partition / casout={name=intable||'_bskey', replace=TRUE} table={name=intable||'_bskey', groupby={{name='bsID'}}};
+						dscode='data '|| intable || '_bskey; call streaminit('|| seed ||'); do bs = 1 to '|| bss || '; bsID = (_threadid_-1)*'|| bss ||' + bs;';
+							do row over rs.frequency;
+								dscode=dscode||'stratan='|| strip(row.FmtVar) ||'/'|| strata_div ||'; do bs_caseIDn = 1 to '|| row.Bpctn ||'; caseID=int(1+'|| row.Frequency ||'*rand(''Uniform'')); bs_caseID=bs_caseIDn+stratan; caseID=caseID+stratan; bag=1; output; end;';
+							end;
+							dscode=dscode||'end; drop bs bs_caseIDn stratan; run;';
+						datastep.runcode result=t / code=dscode;
 		end;
 		/* strata= is not a column in intable */
 		else do;
+				/* store the size of the original sample data (cases) in r.numCases */
+				r.numCases=r.numrows;
+				/* set r.Bpctn to the fraction of the original sample tables case size to be resampled for for each bootstrap resample */
+				r.Bpctn=CEIL(r.numCases*Bpct);
 				/* create a structure for the bootstrap sampling.
-							Will make resamples equal to the size of the original tables cases adjusted by Bpctn
+							Will make resamples equal to the size of the original tables cases
 							these instructions are sent to each _threadid_ and replicated bss times */
 						datastep.runcode result=t / code='data '|| intable ||'_bskey;
 													call streaminit('|| seed ||');
 													do bs = 1 to '|| bss ||';
 														bsID = (_threadid_-1)*'|| bss ||' + bs;
-														do bs_caseID = 1 to '|| Bpctn ||';
-															caseID = int(1+'|| numCases ||'*rand(''Uniform''));
+														do bs_caseID = 1 to '|| r.Bpctn ||';
+															caseID = int(1+'|| r.numCases ||'*rand(''Uniform''));
 															bag=1;
 															output;
 														end;

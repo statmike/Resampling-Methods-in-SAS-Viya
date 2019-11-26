@@ -1,5 +1,5 @@
 # TODO
-- [ ] add external bootstrap values including strata values for resampling: external=no, int, table
+- [ ] document external table for stratification sample size specification include rand generators: strata table = strata, strata_n, {strata_dist}
 - [ ] add stratification to doubleBootstrap
 
 # Resampling Methods in the SAS Viya CAS Engine
