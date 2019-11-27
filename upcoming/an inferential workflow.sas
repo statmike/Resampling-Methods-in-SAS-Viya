@@ -1,3 +1,5 @@
+/* jwbox file to change */
+
 cas mysess sessopts=(caslib='casuser');
 libname mylib cas sessref=mysess;
 
