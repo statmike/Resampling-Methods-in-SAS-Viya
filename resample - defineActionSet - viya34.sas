@@ -180,6 +180,7 @@ proc cas;
 																														drop p: i strata_n strata_n_data strata_dist holder bs_CaseIDn;
 																												run;' single='yes';
 											partition / casout={name=intable||'_bskey', replace=TRUE} table={name=intable||'_bskey', groupby={{name='bsID'}}};
+											dropTable name='internalstrata_info';
 							end;
 							else do;
 											datastep.runcode result=t / code='data '|| intable ||'_bskey;
@@ -209,7 +210,6 @@ proc cas;
 																using (caseID)';
 
 							dropTable name=intable||'_bskey';
-							dropTable name='internalstrata_info';
 							partition / casout={name=intable||'_bs', replace=TRUE} table={name=intable||'_bs', groupby={{name='bsID'}}};
 
 							resp.bss=bss;
